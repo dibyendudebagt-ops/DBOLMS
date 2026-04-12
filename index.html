@@ -67,7 +67,7 @@ function login(){
   auth.signInWithEmailAndPassword(email, pass)
   .then(res=>{
     currentUser = res.user;
-
+console.log(currentUser.a3XJIbGOYHUD4UubvPGM8q2oPKA2);
     db.ref('users/'+currentUser.uid).once('value')
     .then(snap=>{
       if(!snap.exists()){
