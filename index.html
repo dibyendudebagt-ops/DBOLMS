@@ -1,51 +1,45 @@
 <!DOCTYPE html><html>
 <head>
-  <meta charset="UTF-8">
-  <title>Advanced LMS PRO (Fixed)</title>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>  <style>
-    body { font-family: 'Segoe UI'; margin:0; background:#f4f6f9; }
-    .container { padding:20px }
-    .card { background:#fff; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1)}
-    input,button { padding:10px; margin:5px 0; width:100%; border-radius:8px; border:1px solid #ccc }
-    button { background:#4CAF50; color:#fff; border:none }
-    .hidden { display:none }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px }
-    .stat { color:#fff; padding:15px; border-radius:10px }
-    .blue{background:#2196F3}.green{background:#4CAF50}.orange{background:#FF9800}
-  </style></head><body><div class="container" id="loginPage">
-  <div class="card">
-    <h2>Login</h2>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-  </div>
-</div><div class="container hidden" id="dashboard">
-  <h2>Dashboard</h2>  <div class="grid">
-    <div class="stat blue">Courses: <span id="courseCount">0</span></div>
-    <div class="stat green">Users: <span id="userCount">0</span></div>
-    <div class="stat orange">Results: <span id="resultCount">0</span></div>
-  </div>  <div class="card">
-    <h3>Create Course (Admin Only)</h3>
-    <input id="courseTitle" placeholder="Course Title">
-    <button onclick="addCourse()">Add</button>
-  </div>  <div class="card">
-    <h3>Create Quiz</h3>
-    <input id="quizQ" placeholder="Question">
-    <input id="opt1" placeholder="Option 1">
-    <input id="opt2" placeholder="Option 2">
-    <input id="ans" placeholder="Correct Answer">
-    <button onclick="addQuiz()">Add Quiz</button>
-  </div>  <div class="card">
-    <h3>Courses</h3>
-    <ul id="courseList"></ul>
-  </div>  <div class="card">
-    <h3>Take Quiz</h3>
-    <div id="quizBox"></div>
-  </div>  <div class="card">
-    <h3>Analytics</h3>
-    <canvas id="chart"></canvas>
-  </div>  <div class="card">
-    <button onclick="exportExcel()">Export Results (Excel)</button>
-  </div></div><script>
+<meta charset="UTF-8">
+<title>Simple LMS</title><script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script><script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script><style>
+body{font-family:Arial;background:#f4f6f9;margin:0}
+.container{padding:20px}
+.card{background:#fff;padding:15px;margin-bottom:15px;border-radius:10px}
+input,select,button{width:100%;padding:10px;margin:5px 0}
+.hidden{display:none}
+</style></head><body><div class="container" id="loginPage">
+<div class="card">
+<h2>Login</h2>
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<select id="role">
+<option value="teacher">Teacher</option>
+<option value="student">Student</option>
+</select>
+<button onclick="login()">Login</button>
+</div>
+</div><div class="container hidden" id="teacherDash">
+<h2>Teacher Dashboard</h2><div class="card">
+<h3>Add Course</h3>
+<input id="courseTitle" placeholder="Course Title">
+<button onclick="addCourse()">Add</button>
+</div><div class="card">
+<h3>Add Quiz</h3>
+<input id="q" placeholder="Question">
+<input id="o1" placeholder="Option 1">
+<input id="o2" placeholder="Option 2">
+<input id="ans" placeholder="Answer">
+<button onclick="addQuiz()">Add Quiz</button>
+</div>
+</div><div class="container hidden" id="studentDash">
+<h2>Student Dashboard</h2><div class="card">
+<h3>Courses</h3>
+<ul id="courseList"></ul>
+</div><div class="card">
+<h3>Quiz</h3>
+<div id="quizBox"></div>
+</div>
+</div><script>
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -58,150 +52,91 @@ const firebaseConfig = {
   appId: "1:41869582709:web:34faa1737997f723cb333c",
   measurementId: "G-9R4Q8VG1P0"
 };
-    
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.database();
 
-let currentUser, currentRole;
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.database();
+
+let currentUser,role;
 
 function login(){
-  let email = val('email');
-  let pass = val('password');
+ let email=val('email');
+ let pass=val('password');
+ role=document.getElementById('role').value;
 
-  auth.signInWithEmailAndPassword(email, pass)
-  .then(res=>{
-    currentUser = res.user;
+ // special teacher login
+ if(email=="admin" && pass=="admin2"){
+   role="teacher";
+   showDash();
+   return;
+ }
 
-    console.log("UID:", currentUser.uid);
-
-    db.ref('users/'+currentUser.uid).once('value')
-    .then(snap=>{
-
-      if(!snap.exists()){
-        // 🔥 AUTO CREATE USER (IMPORTANT FIX)
-        db.ref('users/'+currentUser.uid).set({
-          email: currentUser.email,
-          role: "student" // default role
-        });
-
-        currentRole = "student";
-      } else {
-        currentRole = snap.val().role;
-      }
-
-      console.log("ROLE:", currentRole);
-
-      showDashboard();
-    });
-  })
-  .catch(e=>alert(e.message));
+ auth.signInWithEmailAndPassword(email,pass)
+ .then(res=>{
+   currentUser=res.user;
+   showDash();
+ })
+ .catch(e=>alert(e.message));
 }
-    
-function showDashboard(){
-  loginPage.classList.add('hidden');
-  dashboard.classList.remove('hidden');
-  loadData();
+
+function showDash(){
+ loginPage.classList.add('hidden');
+
+ if(role=="teacher"){
+   teacherDash.classList.remove('hidden');
+ }else{
+   studentDash.classList.remove('hidden');
+   loadCourses();
+   loadQuiz();
+ }
 }
 
 function addCourse(){
-  if(currentRole !== 'admin'){
-    alert('Only Admin allowed');
-    return;
-  }
-
-  let title = val('courseTitle');
-  db.ref('courses').push({title});
+ let t=val('courseTitle');
+ db.ref('courses').push({title:t});
 }
 
 function addQuiz(){
-  let q = val('quizQ');
-  let o1 = val('opt1');
-  let o2 = val('opt2');
-  let a = val('ans');
-
-  db.ref('quizzes').push({q, options:[o1,o2], answer:a});
+ let q=val('q');
+ let o1=val('o1');
+ let o2=val('o2');
+ let a=val('ans');
+ db.ref('quizzes').push({q,options:[o1,o2],answer:a});
 }
 
-function loadData(){
-
-  db.ref('courses').on('value', snap=>{
-    let data = snap.val() || {};
-    courseCount.innerText = Object.keys(data).length;
-    courseList.innerHTML="";
-
-    for(let id in data){
-      let li=document.createElement('li');
-      li.innerText=data[id].title;
-      courseList.appendChild(li);
-    }
-  });
-
-  db.ref('users').on('value', s=> userCount.innerText = Object.keys(s.val()||{}).length);
-  db.ref('results').on('value', s=> resultCount.innerText = Object.keys(s.val()||{}).length);
-
-  loadQuiz();
+function loadCourses(){
+ db.ref('courses').on('value',snap=>{
+   let data=snap.val()||{};
+   courseList.innerHTML="";
+   for(let i in data){
+     let li=document.createElement('li');
+     li.innerText=data[i].title;
+     courseList.appendChild(li);
+   }
+ });
 }
 
 function loadQuiz(){
-  db.ref('quizzes').on('value', snap=>{
-    let data = snap.val() || {};
-    quizBox.innerHTML="";
+ db.ref('quizzes').on('value',snap=>{
+   let data=snap.val()||{};
+   quizBox.innerHTML="";
 
-    for(let id in data){
-      let d=data[id];
-      let div=document.createElement('div');
-      div.innerHTML=`<p>${d.q}</p>
-        <button onclick="submitQuiz('${id}','${d.options[0]}')">${d.options[0]}</button>
-        <button onclick="submitQuiz('${id}','${d.options[1]}')">${d.options[1]}</button>`;
-      quizBox.appendChild(div);
-    }
-  });
+   for(let id in data){
+     let d=data[id];
+     let div=document.createElement('div');
+     div.innerHTML=`<p>${d.q}</p>
+     <button onclick="check('${d.options[0]}','${d.answer}')">${d.options[0]}</button>
+     <button onclick="check('${d.options[1]}','${d.answer}')">${d.options[1]}</button>`;
+     quizBox.appendChild(div);
+   }
+ });
 }
 
-function submitQuiz(id, ans){
-  db.ref('quizzes/'+id).once('value').then(doc=>{
-    let correct = doc.val().answer;
-    let score = (ans==correct)?1:0;
-
-    db.ref('results').push({user:currentUser.uid, score});
-    alert('Score: '+score);
-    drawChart();
-  });
+function check(ans,correct){
+ alert(ans==correct?"Correct":"Wrong");
 }
 
-function drawChart(){
-  db.ref('results').once('value').then(snap=>{
-    let data = snap.val() || {};
-    let total=0, pass=0;
-
-    for(let i in data){
-      total++;
-      if(data[i].score==1) pass++;
-    }
-
-    new Chart(document.getElementById('chart'),{
-      type:'bar',
-      data:{ labels:['Pass','Fail'], datasets:[{data:[pass,total-pass]}] }
-    });
-  });
-}
-
-function exportExcel(){
-  db.ref('results').once('value').then(snap=>{
-    let data=[];
-    let obj = snap.val() || {};
-
-    for(let i in obj) data.push(obj[i]);
-
-    let ws = XLSX.utils.json_to_sheet(data);
-    let wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Results');
-    XLSX.writeFile(wb, 'results.xlsx');
-  });
-}
-
-function val(id){ return document.getElementById(id).value }
+function val(id){return document.getElementById(id).value}
 
 </script></body>
 </html>
