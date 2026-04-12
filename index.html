@@ -67,21 +67,32 @@ function login(){
   auth.signInWithEmailAndPassword(email, pass)
   .then(res=>{
     currentUser = res.user;
-console.log(currentUser.a3XJIbGOYHUD4UubvPGM8q2oPKA2);
+
+    console.log("UID:", currentUser.uid);
+
     db.ref('users/'+currentUser.uid).once('value')
     .then(snap=>{
+
       if(!snap.exists()){
-        alert('User not assigned role');
-        return;
+        // 🔥 AUTO CREATE USER (IMPORTANT FIX)
+        db.ref('users/'+currentUser.uid).set({
+          email: currentUser.email,
+          role: "student" // default role
+        });
+
+        currentRole = "student";
+      } else {
+        currentRole = snap.val().role;
       }
 
-      currentRole = snap.val().role;
+      console.log("ROLE:", currentRole);
+
       showDashboard();
     });
   })
   .catch(e=>alert(e.message));
 }
-
+    
 function showDashboard(){
   loginPage.classList.add('hidden');
   dashboard.classList.remove('hidden');
