@@ -18,7 +18,7 @@ input,select,button{width:100%;padding:10px;margin:5px 0}
 </select>
 <button onclick="login()">Login</button>
 </div>
-</div><div class="container hidden" id="teacherDash">
+</div><div class="container" id="teacherDash" style="display:none;">
 <h2>Teacher Dashboard</h2><div class="card">
 <h3>Add Course</h3>
 <input id="courseTitle" placeholder="Course Title">
@@ -31,7 +31,7 @@ input,select,button{width:100%;padding:10px;margin:5px 0}
 <input id="ans" placeholder="Answer">
 <button onclick="addQuiz()">Add Quiz</button>
 </div>
-</div><div class="container hidden" id="studentDash">
+</div><div class="container" id="studentDash" style="display:none;">
 <h2>Student Dashboard</h2><div class="card">
 <h3>Courses</h3>
 <ul id="courseList"></ul>
@@ -60,17 +60,23 @@ const db=firebase.database();
 let currentUser,role;
 
 function login(){
- let email=val('email');
- let pass=val('password');
- role=document.getElementById('role').value;
+  let email = val('email');
+  let pass = val('password');
+  role = document.getElementById('role').value;
 
- // special teacher login
- if(email=="admin" && pass=="admin2"){
-   role="teacher";
-   showDash();
-   return;
- }
+  if(email === "admin" && pass === "admin2"){
+    role = "teacher";
+    showDash();
+    return;
+  }
 
+  auth.signInWithEmailAndPassword(email, pass)
+  .then(res=>{
+    currentUser = res.user;
+    showDash();
+  })
+  .catch(e=>alert(e.message));
+}
  auth.signInWithEmailAndPassword(email,pass)
  .then(res=>{
    currentUser=res.user;
@@ -80,15 +86,17 @@ function login(){
 }
 
 function showDash(){
- loginPage.classList.add('hidden');
+  document.getElementById('loginPage').style.display = "none";
 
- if(role=="teacher"){
-   teacherDash.classList.remove('hidden');
- }else{
-   studentDash.classList.remove('hidden');
-   loadCourses();
-   loadQuiz();
- }
+  if(role === "teacher"){
+    document.getElementById('teacherDash').style.display = "block";
+    document.getElementById('studentDash').style.display = "none";
+  } else {
+    document.getElementById('studentDash').style.display = "block";
+    document.getElementById('teacherDash').style.display = "none";
+    loadCourses();
+    loadQuiz();
+  }
 }
 
 function addCourse(){
