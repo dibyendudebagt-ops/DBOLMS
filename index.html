@@ -1,11 +1,11 @@
 <!DOCTYPE html><html>
 <head>
   <meta charset="UTF-8">
-  <title>Advanced LMS PRO</title>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>  <style>
+  <title>Advanced LMS PRO (Fixed)</title>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>  <style>
     body { font-family: 'Segoe UI'; margin:0; background:#f4f6f9; }
     .container { padding:20px }
     .card { background:#fff; padding:15px; border-radius:12px; margin-bottom:15px; box-shadow:0 4px 10px rgba(0,0,0,0.1)}
-    input,button,select { padding:10px; margin:5px 0; width:100%; border-radius:8px; border:1px solid #ccc }
+    input,button { padding:10px; margin:5px 0; width:100%; border-radius:8px; border:1px solid #ccc }
     button { background:#4CAF50; color:#fff; border:none }
     .hidden { display:none }
     .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px }
@@ -16,11 +16,6 @@
     <h2>Login</h2>
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
-    <select id="role">
-      <option value="admin">Admin</option>
-      <option value="teacher">Teacher</option>
-      <option value="student">Student</option>
-    </select>
     <button onclick="login()">Login</button>
   </div>
 </div><div class="container hidden" id="dashboard">
@@ -29,7 +24,7 @@
     <div class="stat green">Users: <span id="userCount">0</span></div>
     <div class="stat orange">Results: <span id="resultCount">0</span></div>
   </div>  <div class="card">
-    <h3>Create Course</h3>
+    <h3>Create Course (Admin Only)</h3>
     <input id="courseTitle" placeholder="Course Title">
     <button onclick="addCourse()">Add</button>
   </div>  <div class="card">
@@ -52,36 +47,39 @@
     <button onclick="exportExcel()">Export Results (Excel)</button>
   </div></div><script>
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
   authDomain: "dbolms.firebaseapp.com",
   databaseURL: "https://dbolms-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "dbolms",
-  storageBucket: "dbolms.firebasestorage.app",
-  messagingSenderId: "41869582709",
-  appId: "1:41869582709:web:34faa1737997f723cb333c",
-  measurementId: "G-9R4Q8VG1P0"
+  projectId: "dbolms"
 };
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const db = firebase.firestore();
+const db = firebase.database();
 
-let currentUser;
+let currentUser, currentRole;
 
 function login(){
-  let email = emailEl('email');
-  let pass = emailEl('password');
-  let role = document.getElementById('role').value;
+  let email = val('email');
+  let pass = val('password');
 
   auth.signInWithEmailAndPassword(email, pass)
   .then(res=>{
     currentUser = res.user;
-    db.collection('users').doc(currentUser.uid).set({email, role});
 
-    showDashboard();
-  }).catch(e=>alert(e.message));
+    db.ref('users/'+currentUser.uid).once('value')
+    .then(snap=>{
+      if(!snap.exists()){
+        alert('User not assigned role');
+        return;
+      }
+
+      currentRole = snap.val().role;
+      showDashboard();
+    });
+  })
+  .catch(e=>alert(e.message));
 }
 
 function showDashboard(){
@@ -91,66 +89,80 @@ function showDashboard(){
 }
 
 function addCourse(){
-  let title = emailEl('courseTitle');
-  db.collection('courses').add({title});
+  if(currentRole !== 'admin'){
+    alert('Only Admin allowed');
+    return;
+  }
+
+  let title = val('courseTitle');
+  db.ref('courses').push({title});
 }
 
 function addQuiz(){
-  let q = emailEl('quizQ');
-  let o1 = emailEl('opt1');
-  let o2 = emailEl('opt2');
-  let a = emailEl('ans');
+  let q = val('quizQ');
+  let o1 = val('opt1');
+  let o2 = val('opt2');
+  let a = val('ans');
 
-  db.collection('quizzes').add({q, options:[o1,o2], answer:a});
+  db.ref('quizzes').push({q, options:[o1,o2], answer:a});
 }
 
 function loadData(){
 
-  db.collection('courses').onSnapshot(s=>{
-    courseCount.innerText = s.size;
+  db.ref('courses').on('value', snap=>{
+    let data = snap.val() || {};
+    courseCount.innerText = Object.keys(data).length;
     courseList.innerHTML="";
-    s.forEach(d=>{
+
+    for(let id in data){
       let li=document.createElement('li');
-      li.innerText=d.data().title;
+      li.innerText=data[id].title;
       courseList.appendChild(li);
-    });
+    }
   });
 
-  db.collection('users').onSnapshot(s=> userCount.innerText=s.size);
-  db.collection('results').onSnapshot(s=> resultCount.innerText=s.size);
+  db.ref('users').on('value', s=> userCount.innerText = Object.keys(s.val()||{}).length);
+  db.ref('results').on('value', s=> resultCount.innerText = Object.keys(s.val()||{}).length);
 
   loadQuiz();
 }
 
 function loadQuiz(){
-  db.collection('quizzes').onSnapshot(s=>{
+  db.ref('quizzes').on('value', snap=>{
+    let data = snap.val() || {};
     quizBox.innerHTML="";
-    s.forEach(doc=>{
-      let d=doc.data();
+
+    for(let id in data){
+      let d=data[id];
       let div=document.createElement('div');
       div.innerHTML=`<p>${d.q}</p>
-        <button onclick="submitQuiz('${doc.id}','${d.options[0]}')">${d.options[0]}</button>
-        <button onclick="submitQuiz('${doc.id}','${d.options[1]}')">${d.options[1]}</button>`;
+        <button onclick="submitQuiz('${id}','${d.options[0]}')">${d.options[0]}</button>
+        <button onclick="submitQuiz('${id}','${d.options[1]}')">${d.options[1]}</button>`;
       quizBox.appendChild(div);
-    });
+    }
   });
 }
 
 function submitQuiz(id, ans){
-  db.collection('quizzes').doc(id).get().then(doc=>{
-    let correct = doc.data().answer;
+  db.ref('quizzes/'+id).once('value').then(doc=>{
+    let correct = doc.val().answer;
     let score = (ans==correct)?1:0;
 
-    db.collection('results').add({user:currentUser.uid, score});
+    db.ref('results').push({user:currentUser.uid, score});
     alert('Score: '+score);
     drawChart();
   });
 }
 
 function drawChart(){
-  db.collection('results').get().then(s=>{
-    let total=s.size, pass=0;
-    s.forEach(d=>{ if(d.data().score==1) pass++; });
+  db.ref('results').once('value').then(snap=>{
+    let data = snap.val() || {};
+    let total=0, pass=0;
+
+    for(let i in data){
+      total++;
+      if(data[i].score==1) pass++;
+    }
 
     new Chart(document.getElementById('chart'),{
       type:'bar',
@@ -160,9 +172,12 @@ function drawChart(){
 }
 
 function exportExcel(){
-  db.collection('results').get().then(s=>{
+  db.ref('results').once('value').then(snap=>{
     let data=[];
-    s.forEach(d=> data.push(d.data()));
+    let obj = snap.val() || {};
+
+    for(let i in obj) data.push(obj[i]);
+
     let ws = XLSX.utils.json_to_sheet(data);
     let wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Results');
@@ -170,7 +185,7 @@ function exportExcel(){
   });
 }
 
-function emailEl(id){ return document.getElementById(id).value }
+function val(id){ return document.getElementById(id).value }
 
 </script></body>
 </html>
