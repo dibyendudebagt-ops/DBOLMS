@@ -60,6 +60,8 @@ const db=firebase.database();
 let currentUser,role;
 
 function login(){
+  alert("Login clicked");  // 👈 put it here
+
   let email = val('email');
   let pass = val('password');
   role = document.getElementById('role').value;
@@ -69,6 +71,14 @@ function login(){
     showDash();
     return;
   }
+
+  auth.signInWithEmailAndPassword(email, pass)
+  .then(res=>{
+    currentUser = res.user;
+    showDash();
+  })
+  .catch(e=>alert(e.message));
+}
 
   auth.signInWithEmailAndPassword(email, pass)
   .then(res=>{
