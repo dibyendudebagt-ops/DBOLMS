@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBOLMS - Fully Automated Premium</title>
+    <title>DBOLMS - Integrated Dashboard</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -14,25 +14,40 @@
         body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 15px; }
         .container { max-width: 500px; margin: auto; }
         .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-student { background: #007bff; color: white; }
+        .btn-teacher { background: #6c757d; color: white; }
         h2 { color: #007bff; margin-top: 0; }
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        .action-btn { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
         .hidden { display: none; }
         .premium-box { background: #fff3cd; border: 1px solid #ffeeba; }
-        .pdf-link { display: block; background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 8px; text-decoration: none; color: #333; font-weight: 600; text-align: center; }
         .quiz-item { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
-        .opt-btn { width: 48%; display: inline-block; background: #6c757d; font-size: 14px; }
+        .opt-btn { width: 48%; display: inline-block; background: #6c757d; font-size: 14px; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="nav-buttons">
+        <button class="nav-btn btn-student" onclick="showView('studentDash')">View as Student</button>
+        <button class="nav-btn btn-teacher" onclick="showView('teacherLogin')">Teacher Login</button>
+    </div>
+
+    <div id="teacherLogin" class="hidden">
+        <div class="card">
+            <h2>Teacher Login</h2>
+            <input type="email" id="tEmail" placeholder="Email">
+            <input type="password" id="tPass" placeholder="Password">
+            <button class="action-btn" onclick="teacherLogin()">Login</button>
+        </div>
+    </div>
+
     <div id="studentDash">
         <div class="card">
             <h2>Quizzes & Lessons</h2>
-            <div id="quizList">Loading content...</div>
+            <div id="quizList">Loading quizzes...</div>
         </div>
 
         <div class="card premium-box">
@@ -40,25 +55,24 @@
             <p>1. Pay via UPI to 👉: <strong>9612032475@ptsbi</strong></p>
             <input type="email" id="payEmail" placeholder="Your Email Address">
             <input type="text" id="payUTR" placeholder="12-Digit Transaction ID (UTR)">
-            <button id="verifyBtn" onclick="processPayment()">Verify & Get Access Code</button>
+            <button class="action-btn" id="verifyBtn" onclick="processPayment()">Verify & Get Access Code</button>
         </div>
     </div>
 
     <div id="otpSection" class="hidden">
         <div class="card">
             <h2>Enter Access Code</h2>
-            <p>Check your email for the 6-digit passcode.</p>
+            <p>Check your email for the passcode.</p>
             <input type="number" id="otpInput" placeholder="Enter OTP">
-            <button onclick="unlockDashboard()">Unlock Dashboard</button>
-            <button onclick="location.reload()" style="background:none; color:#666; font-size:12px;">Back</button>
+            <button class="action-btn" onclick="unlockDashboard()">Unlock Now</button>
         </div>
     </div>
 
     <div id="premiumDash" class="hidden">
-        <div class="card" style="border-top: 5px solid #ffc107;">
-            <h2 style="color: #d39e00;">💎 Premium Resources</h2>
+        <div class="card">
+            <h2 style="color: #ffc107;">💎 Premium Downloads</h2>
             <div id="pdfList"></div>
-            <button onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
+            <button class="action-btn" onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
         </div>
     </div>
 </div>
@@ -75,60 +89,64 @@ const firebaseConfig = {
     appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
-// Initialize Firebase & EmailJS
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-emailjs.init("Tji-49rYlxrXApwqe"); 
+const auth = firebase.auth();
+emailjs.init("Tji-49rYlxrXApwqe"); // Your Public Key
 
-const SERVICE_ID = 'service_rand3au';
-const TEMPLATE_ID = 'template_tvjg21i';
+// --- VIEW NAVIGATION ---
+function showView(viewId) {
+    const views = ['studentDash', 'teacherLogin', 'otpSection', 'premiumDash'];
+    views.forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById(viewId).classList.remove('hidden');
+}
+
+// --- TEACHER LOGIC ---
+function teacherLogin() {
+    const email = document.getElementById('tEmail').value;
+    const pass = document.getElementById('tPass').value;
+    auth.signInWithEmailAndPassword(email, pass)
+        .then(() => alert("Logged in successfully! You can now add courses."))
+        .catch(err => alert("Login Failed: " + err.message));
+}
 
 // --- AUTOMATION LOGIC ---
 async function processPayment() {
-    const emailValue = document.getElementById('payEmail').value;
-    const utrValue = document.getElementById('payUTR').value;
+    const email = document.getElementById('payEmail').value;
+    const utr = document.getElementById('payUTR').value;
     const btn = document.getElementById('verifyBtn');
 
-    if (!emailValue || utrValue.length < 12) {
-        return alert("Please enter a valid email and 12-digit UTR number.");
-    }
+    if (!email || utr.length < 12) return alert("Enter valid email and 12-digit UTR.");
 
     btn.disabled = true;
-    btn.innerText = "Checking Transaction...";
+    btn.innerText = "Verifying...";
 
-    try {
-        // 1. Validate UTR uniqueness in Firebase
-        const utrSnap = await db.ref('used_utr/' + utrValue).once('value');
-        if (utrSnap.exists()) {
-            alert("This Transaction ID has already been used.");
-            btn.disabled = false;
-            btn.innerText = "Verify & Get Access Code";
-            return;
-        }
-
-        // 2. Generate OTP & Store Session
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const emailKey = emailValue.replace(/\./g, ',');
-
-        await db.ref('active_access/' + emailKey).set({ otp, utr: utrValue, time: Date.now() });
-        await db.ref('used_utr/' + utrValue).set({ email: emailValue });
-
-        // 3. Trigger Email (Using variables: email, passcode)
-        emailjs.send(SERVICE_ID, TEMPLATE_ID, {
-            email: emailValue,   // Matches {{email}} in template
-            passcode: otp,      // Matches {{passcode}} in template
-            time: "15 minutes"
-        }).then(() => {
-            alert("UTR Verified! OTP has been sent to your email.");
-            document.getElementById('studentDash').classList.add('hidden');
-            document.getElementById('otpSection').classList.remove('hidden');
-        });
-
-    } catch (err) {
-        alert("Verification failed. Check your internet or contact support.");
+    const utrSnap = await db.ref('used_utr/' + utr).once('value');
+    if (utrSnap.exists()) {
+        alert("This UTR has already been used.");
         btn.disabled = false;
         btn.innerText = "Verify & Get Access Code";
+        return;
     }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailKey = email.replace(/\./g, ',');
+
+    await db.ref('active_access/' + emailKey).set({ otp, utr, time: Date.now() });
+    await db.ref('used_utr/' + utr).set({ email });
+
+    emailjs.send('service_rand3au', 'template_tvjg21i', {
+        email: email,       // Template variable {{email}}
+        passcode: otp       // Template variable {{passcode}}
+    }).then(() => {
+        alert("OTP sent to your email!");
+        showView('otpSection');
+    }).catch(err => {
+        alert("Email failed. Contact admin.");
+        btn.disabled = false;
+    });
 }
 
 async function unlockDashboard() {
@@ -137,12 +155,10 @@ async function unlockDashboard() {
 
     const snap = await db.ref('active_access/' + emailKey).once('value');
     if (snap.exists() && snap.val().otp === enteredOtp) {
-        alert("Access Granted!");
-        document.getElementById('otpSection').classList.add('hidden');
-        document.getElementById('premiumDash').classList.remove('hidden');
+        showView('premiumDash');
         loadPremiumContent();
     } else {
-        alert("Invalid Access Code. Please check your email again.");
+        alert("Invalid Access Code.");
     }
 }
 
@@ -158,21 +174,20 @@ function loadPremiumContent() {
     });
 }
 
+// Load quizzes for Student Dashboard
 db.ref('quizzes').on('value', snap => {
     const data = snap.val() || {};
     const div = document.getElementById('quizList');
     div.innerHTML = "";
     for(let id in data) {
         const item = data[id];
-        div.innerHTML += `<div class="quiz-item">
-            <p><strong>Q:</strong> ${item.q}</p>
+        div.innerHTML += `<div class="quiz-item"><p><strong>Q:</strong> ${item.q}</p>
             <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
             <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
         </div>`;
     }
 });
 
-// Smart Check Logic
 function check(val, ans) {
     if (val.trim().toLowerCase() === ans.trim().toLowerCase()) {
         alert("🎉 Correct!");
