@@ -45,11 +45,11 @@
         </div>
 
         <div class="card premium-box">
-            <h3>Premium Access for Descriptive Question/Answers</h3>
-            <p>Pay Rs 200 at UPI: <strong>9612032475@ptsbi</strong></p>
+            <h3>Premium Access (Q&A)</h3>
+            <p>Pay ₹200/- at UPI: <strong>9612032475@ptsbi</strong></p>
             <input type="email" id="payEmail" placeholder="Email for OTP">
-            <input type="text" id="payUTR" placeholder="12-Digit UTR Number OR Transaction Number">
-            <button class="action-btn" id="verifyBtn" onclick="processPayment()">Verify & Get OTP</button>
+            <input type="text" id="payUTR" placeholder="12-Digit UTR Number">
+            <button class="action-btn" id="verifyBtn" onclick="processPayment()">Submit for Verification</button>
         </div>
     </div>
 
@@ -68,7 +68,6 @@
                 <input type="text" id="cImgUrl" placeholder="GitHub PNG Link">
                 <button class="action-btn" style="background:var(--success)" onclick="addCourse()">Upload Course</button>
             </div>
-
             <div class="card admin-section">
                 <h3>Add New Quiz</h3>
                 <input type="text" id="qText" placeholder="Question">
@@ -77,7 +76,6 @@
                 <input type="text" id="qAns" placeholder="Correct Answer">
                 <button class="action-btn" style="background:var(--success)" onclick="addQuiz()">Upload Quiz</button>
             </div>
-
             <div class="card admin-section">
                 <h3>Upload Premium Content</h3>
                 <input type="text" id="pdfTitle" placeholder="PDF Title">
@@ -95,7 +93,7 @@
     </div>
 
     <div id="viewPremium" class="hidden card">
-        <h2 style="color:var(--premium)">ðŸ’Ž Premium Vault</h2>
+        <h2 style="color:var(--premium)">💎 Premium Vault</h2>
         <div id="pdfList"></div>
         <button class="action-btn" onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
     </div>
@@ -132,20 +130,13 @@ function teacherLogin() {
     }).catch(err => alert(err.message));
 }
 
-// 1. IMPROVED ADD COURSE (Fixes links before saving)
 function addCourse() {
     let url = document.getElementById('cImgUrl').value;
     if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
         url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
     }
-    db.ref('courses').push({
-        title: document.getElementById('cTitle').value,
-        img: url
-    }).then(() => {
-        alert("Course Uploaded!");
-        document.getElementById('cTitle').value = "";
-        document.getElementById('cImgUrl').value = "";
-    });
+    db.ref('courses').push({ title: document.getElementById('cTitle').value, img: url })
+    .then(() => alert("Course Uploaded!"));
 }
 
 function addQuiz() {
@@ -161,23 +152,16 @@ function addPDF() {
     alert("Premium Added!");
 }
 
-// 2. IMPROVED DATA SYNC (Fixes old links on-the-fly)
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
     snap.forEach(child => {
         const item = child.val();
         let displayImg = item.img;
-        
-        // Double-check fix for older entries
         if (displayImg.includes("github.com") && !displayImg.includes("raw.githubusercontent.com")) {
             displayImg = displayImg.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
         }
-        
-        cont.innerHTML += `<div style="margin-bottom:20px;">
-            <h3 style="margin-bottom:5px;">${item.title}</h3>
-            <img src="${displayImg}" class="course-img" alt="Lesson Graphic">
-        </div>`;
+        cont.innerHTML += `<div style="margin-bottom:20px;"><h3>${item.title}</h3><img src="${displayImg}" class="course-img"></div>`;
     });
 });
 
@@ -194,29 +178,66 @@ db.ref('quizzes').on('value', snap => {
 });
 
 function check(u, a) {
-    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("ðŸŽ‰ Correct!");
-    else alert("âŒ Wrong!");
+    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("🎉 Correct!");
+    else alert("❌ Wrong!");
 }
 
+// --- UPDATED SERVER-SIDE STYLE LOGIC ---
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
-    if(!email || utr.length < 12) return alert("Fill details properly.");
+    const btn = document.getElementById('verifyBtn');
 
-    const used = await db.ref('used_utr/' + utr).once('value');
-    if(used.exists()) return alert("This UTR has already been used!");
+    if(!email || utr.length < 12) return alert("Enter valid Email and 12-digit UTR.");
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    btn.disabled = true;
+    btn.innerText = "Verifying with Bank...";
+
     const emailKey = email.replace(/\./g, ',');
+    const emailTime = Date.now();
 
-    await db.ref('active_access/' + emailKey).set({ otp, utr });
-    await db.ref('used_utr/' + utr).set({ email });
+    // Check if UTR used
+    const used = await db.ref('used_utr/' + utr).once('value');
+    if(used.exists()) {
+        alert("UTR already claimed.");
+        btn.disabled = false; return;
+    }
 
-    emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp })
-    .then(() => {
-        alert("OTP Sent to " + email);
-        document.getElementById('tabStudent').classList.add('hidden');
-        document.getElementById('viewOTP').classList.remove('hidden');
+    // STEP 1: Submit UTR along with email/timestamp for Server Validation
+    const requestData = {
+        utr: utr,
+        email: email,
+        emailTime: emailTime,
+        status: "pending", // Server will update this to "verified" after Bank API call
+        amountExpected: 200
+    };
+
+    await db.ref('active_access/' + emailKey).set(requestData);
+    
+    // STEP 2 & 3 & 4: Listen for Server-side Verification
+    // (This listener acts as the trigger once your Cloud Function/Admin confirms the match)
+    db.ref('active_access/' + emailKey).on('value', (snapshot) => {
+        const status = snapshot.val().status;
+
+        if (status === "verified") {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            // Finalize access record
+            db.ref('active_access/' + emailKey).update({ otp: otp, status: "completed" });
+            db.ref('used_utr/' + utr).set({ email: email, verifiedAt: Date.now() });
+
+            // Send OTP
+            emailjs.send('service_rand3au', 'template_tvjg21i', { email: email, passcode: otp })
+            .then(() => {
+                alert("Bank verified! OTP sent to " + email);
+                document.getElementById('tabStudent').classList.add('hidden');
+                document.getElementById('viewOTP').classList.remove('hidden');
+            });
+        } else if (status === "rejected") {
+            alert("Verification failed. Amount or Timestamp mismatch.");
+            btn.disabled = false;
+            btn.innerText = "Verify & Get OTP";
+        }
     });
 }
 
@@ -230,7 +251,7 @@ async function unlockPremium() {
         document.getElementById('viewPremium').classList.remove('hidden');
         db.ref('premium_pdfs').on('value', s => {
             const list = document.getElementById('pdfList'); list.innerHTML = "";
-            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">ðŸ“„ ${c.val().title}</a>`);
+            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">📄 ${c.val().title}</a>`);
         });
     } else alert("Invalid Code");
 }
