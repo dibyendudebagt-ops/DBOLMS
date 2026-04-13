@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>LMS - Live Sync</title>
+    <title>LMS - Integrated</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -11,10 +11,11 @@
         .container { padding: 20px; max-width: 600px; margin: auto; }
         .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         .hidden { display: none; }
         .quiz-item { border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 10px; }
         .opt-btn { background: #6c757d; margin: 5px 0; width: 48%; display: inline-block; }
+        img.course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -28,6 +29,9 @@
     <div id="studentDash">
         <div class="card">
             <h2>Student Dashboard</h2>
+            <h3>Courses</h3>
+            <div id="courseContainer">Loading courses...</div>
+            <hr>
             <h3>Quizzes</h3>
             <div id="quizBox">Loading quizzes...</div>
         </div>
@@ -46,6 +50,11 @@
         <div class="card">
             <button onclick="logout()" style="background:#dc3545">Logout</button>
             <hr>
+            <h3>Add New Course (GitHub Image)</h3>
+            <input id="courseTitle" placeholder="Course Name (e.g., Algebra)">
+            <input id="courseImage" placeholder="Image Filename (e.g., page1.png)">
+            <button onclick="addCourse()" style="background:#28a745">Save Course</button>
+            <hr>
             <h3>Create New Quiz</h3>
             <input id="q" placeholder="Question">
             <input id="o1" placeholder="Option 1">
@@ -55,62 +64,9 @@
         </div>
     </div>
 </div>
-<div class="card">
-    <h3>Add New Course (GitHub Image)</h3>
-    <input id="courseTitle" placeholder="Course Name (e.g., Algebra 101)">
-    <input id="courseImage" placeholder="Image Filename (e.g., lesson1.png)">
-    <button onclick="addCourse()" style="background:#28a745">Add Course</button>
-</div>
-
-<div class="card">
-    <h2>Student Dashboard</h2>
-    <div id="courseContainer">
-        </div>
-</div>
 
 <script>
-// --- Update this with your actual GitHub path ---
-const githubBaseURL = "https://raw.githubusercontent.com/dibyendudebagt-ops/DBOLMS/main/Class6_Science_Chapter1.png";
-
-// --- Teacher: Save Title + Filename ---
-function addCourse() {
-    const title = document.getElementById('courseTitle').value;
-    const imgName = document.getElementById('courseImage').value;
-
-    if(title && imgName) {
-        db.ref('courses').push({
-            title: title,
-            imageFile: imgName
-        }).then(() => {
-            alert("Course added to index!");
-            document.getElementById('courseTitle').value = "";
-            document.getElementById('courseImage').value = "";
-        });
-    }
-}
-
-// --- Student: Render the Image from GitHub ---
-db.ref('courses').on('value', snap => {
-    const data = snap.val() || {};
-    const container = document.getElementById('courseContainer');
-    container.innerHTML = "";
-
-    for(let id in data) {
-        const course = data[id];
-        const fullURL = githubBaseURL + course.imageFile;
-
-        container.innerHTML += `
-            <div class="card" style="border:1px solid #ddd">
-                <h4>${course.title}</h4>
-                <img src="${fullURL}" alt="Course Page" style="width:100%; border-radius:5px; cursor:pointer" onclick="window.open('${fullURL}')">
-                <p style="font-size:12px; color:#666">Source: GitHub/${course.imageFile}</p>
-            </div>
-        `;
-    }
-});
-</script>
-
-<script>
+// --- CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
     authDomain: "dbolms.firebaseapp.com",
@@ -121,11 +77,14 @@ const firebaseConfig = {
     appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
+// URL should point to the repository root (ends in /main/)
+const githubBaseURL = "https://raw.githubusercontent.com/dibyendudebagt-ops/DBOLMS/main/";
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// --- Auth & Navigation ---
+// --- NAVIGATION & AUTH ---
 function showView(view) {
     document.getElementById('studentDash').classList.add('hidden');
     document.getElementById('loginSection').classList.add('hidden');
@@ -153,45 +112,63 @@ auth.onAuthStateChanged(user => {
 });
 
 // --- TEACHER ACTIONS ---
+function addCourse() {
+    const title = document.getElementById('courseTitle').value;
+    const imgName = document.getElementById('courseImage').value;
+    if(title && imgName) {
+        db.ref('courses').push({ title, imageFile: imgName })
+        .then(() => {
+            alert("Course Added!");
+            document.getElementById('courseTitle').value = "";
+            document.getElementById('courseImage').value = "";
+        });
+    }
+}
+
 function addQuiz() {
     const q = document.getElementById('q').value;
     const o1 = document.getElementById('o1').value;
     const o2 = document.getElementById('o2').value;
     const ans = document.getElementById('ans').value;
-
-    if(!q || !ans) return alert("Fill all fields");
-
-    db.ref('quizzes').push({
-        q: q,
-        options: [o1, o2],
-        answer: ans
-    }).then(() => {
-        alert("Saved!");
-        document.getElementById('q').value = ""; // Clear inputs
-    });
+    if(q && ans) {
+        db.ref('quizzes').push({ q, options: [o1, o2], answer: ans })
+        .then(() => {
+            alert("Quiz Saved!");
+            document.getElementById('q').value = "";
+        });
+    }
 }
 
-// --- LIVE STUDENT DATA (The Fix) ---
-// This runs globally so the student dashboard is always listening
+// --- DATA LOADING (STUDENT VIEW) ---
+// Load Courses
+db.ref('courses').on('value', snap => {
+    const data = snap.val() || {};
+    const container = document.getElementById('courseContainer');
+    container.innerHTML = "";
+    for(let id in data) {
+        const course = data[id];
+        const fullURL = githubBaseURL + course.imageFile;
+        container.innerHTML += `
+            <div style="margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <strong>${course.title}</strong><br>
+                <img src="${fullURL}" class="course-img" alt="Lesson">
+            </div>`;
+    }
+});
+
+// Load Quizzes
 db.ref('quizzes').on('value', snap => {
     const data = snap.val() || {};
     const box = document.getElementById('quizBox');
-    box.innerHTML = ""; // Clear current list
-
+    box.innerHTML = "";
     for(let id in data) {
         const item = data[id];
-        const div = document.createElement('div');
-        div.className = "quiz-item";
-        div.innerHTML = `
-            <p><strong>${item.q}</strong></p>
-            <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
-            <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
-        `;
-        box.appendChild(div);
-    }
-    
-    if (Object.keys(data).length === 0) {
-        box.innerHTML = "No quizzes available yet.";
+        box.innerHTML += `
+            <div class="quiz-item">
+                <p>${item.q}</p>
+                <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
+                <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
+            </div>`;
     }
 });
 
