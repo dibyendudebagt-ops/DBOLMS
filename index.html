@@ -2,49 +2,72 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>LMS with Login</title>
+    <title>LMS - Public Student / Private Teacher</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        body { font-family: Arial; background: #f4f6f9; margin: 0; }
-        .container { padding: 20px; max-width: 600px; margin: auto; }
-        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
+        body { font-family: 'Segoe UI', Arial; background: #f0f2f5; margin: 0; }
+        .container { padding: 20px; max-width: 800px; margin: auto; }
+        .card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
         .hidden { display: none; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav button { flex: 1; background: #6c757d; }
+        .quiz-item { border-bottom: 1px solid #eee; padding: 10px 0; }
     </style>
 </head>
 <body>
 
-<div class="container" id="loginSection">
-    <div class="card">
-        <h2>LMS Login</h2>
-        <input type="email" id="email" placeholder="Email (e.g., dibyendu.d82@tripura.gov.in)">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Login</button>
+<div class="container">
+    <div class="nav" id="mainNav">
+        <button onclick="showStudent()">Student View (Public)</button>
+        <button onclick="showLogin()">Teacher Login</button>
     </div>
-</div>
 
-<div class="container hidden" id="teacherDash">
-    <div class="card">
-        <h2>Teacher Dashboard</h2>
-        <button onclick="logout()" style="background:#dc3545">Logout</button>
-        <hr>
-        <h3>Add Course</h3>
-        <input id="courseTitle" placeholder="Course Title">
-        <button onclick="addCourse()">Add Course</button>
+    <div id="studentDash">
+        <div class="card">
+            <h2>Student Dashboard (Public)</h2>
+            <h3>Available Courses</h3>
+            <ul id="courseList" style="list-style: none; padding: 0;"></ul>
+        </div>
+        <div class="card">
+            <h3>Take a Quiz</h3>
+            <div id="quizBox"></div>
+        </div>
     </div>
-</div>
 
-<div class="container hidden" id="studentDash">
-    <div class="card">
-        <h2>Student Dashboard</h2>
-        <button onclick="logout()" style="background:#dc3545">Logout</button>
-        <hr>
-        <h3>Available Courses</h3>
-        <ul id="courseList"></ul>
+    <div id="loginSection" class="hidden">
+        <div class="card">
+            <h2>Teacher Authentication</h2>
+            <input type="email" id="email" placeholder="Admin Email">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login to Manage</button>
+            <button onclick="showStudent()" style="background:none; color:#007bff; border:none">Cancel</button>
+        </div>
+    </div>
+
+    <div id="teacherDash" class="hidden">
+        <div class="card">
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <h2>Teacher Dashboard</h2>
+                <button onclick="logout()" style="width:100px; background:#dc3545">Logout</button>
+            </div>
+            <hr>
+            <h3>Add New Course</h3>
+            <input id="courseTitle" placeholder="Course Title">
+            <button onclick="addCourse()" style="background:#28a745">Add Course</button>
+        </div>
+
+        <div class="card">
+            <h3>Add New Quiz</h3>
+            <input id="q" placeholder="Question">
+            <input id="o1" placeholder="Option 1">
+            <input id="o2" placeholder="Option 2">
+            <input id="ans" placeholder="Correct Answer">
+            <button onclick="addQuiz()" style="background:#28a745">Add Quiz</button>
+        </div>
     </div>
 </div>
 
@@ -59,80 +82,87 @@ const firebaseConfig = {
     appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// --- Authentication Logic ---
+// --- View Switching ---
+function showStudent() {
+    document.getElementById('studentDash').classList.remove('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('teacherDash').classList.add('hidden');
+    document.getElementById('mainNav').classList.remove('hidden');
+}
 
+function showLogin() {
+    document.getElementById('studentDash').classList.add('hidden');
+    document.getElementById('loginSection').classList.remove('hidden');
+}
+
+// --- Auth Logic ---
 function login() {
     const email = document.getElementById('email').value;
     const pass = document.getElementById('password').value;
-
-    auth.signInWithEmailAndPassword(email, pass)
-        .then((userCredential) => {
-            // Success! The onAuthStateChanged listener below will handle the rest
-        })
-        .catch((error) => {
-            alert("Login Failed: " + error.message);
-        });
+    auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
 }
 
 function logout() {
-    auth.signOut().then(() => {
-        location.reload();
-    });
+    auth.signOut().then(() => location.reload());
 }
 
-// Monitor Auth State
 auth.onAuthStateChanged(user => {
     if (user) {
-        // User is signed in, now check their role in the database
-        checkUserRole(user.uid);
-    } else {
-        showSection('loginSection');
+        // Logged in as Teacher/Admin
+        document.getElementById('mainNav').classList.add('hidden');
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('studentDash').classList.add('hidden');
+        document.getElementById('teacherDash').classList.remove('hidden');
     }
 });
 
-function checkUserRole(uid) {
-    // This matches the structure in your screenshot
-    db.ref('users/' + uid).once('value').then(snapshot => {
-        const userData = snapshot.val();
-        if (userData && userData.role === "admin") {
-            showSection('teacherDash');
-        } else {
-            showSection('studentDash');
-            loadCourses();
-        }
-    });
-}
+// --- Public Data Loading (Runs for everyone) ---
+db.ref('courses').on('value', snap => {
+    let data = snap.val() || {};
+    let list = document.getElementById('courseList');
+    list.innerHTML = "";
+    for(let i in data) {
+        list.innerHTML += `<li class="card" style="margin-bottom:5px; background:#f9f9f9">${data[i].title}</li>`;
+    }
+});
 
-function showSection(id) {
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('teacherDash').classList.add('hidden');
-    document.getElementById('studentDash').classList.add('hidden');
-    document.getElementById(id).classList.remove('hidden');
-}
+db.ref('quizzes').on('value', snap => {
+    let data = snap.val() || {};
+    let box = document.getElementById('quizBox');
+    box.innerHTML = "";
+    for(let id in data) {
+        let d = data[id];
+        box.innerHTML += `
+            <div class="quiz-item">
+                <p><strong>${d.q}</strong></p>
+                <button onclick="checkAnswer('${d.options[0]}','${d.answer}')">${d.options[0]}</button>
+                <button onclick="checkAnswer('${d.options[1]}','${d.answer}')">${d.options[1]}</button>
+            </div>`;
+    }
+});
 
-// --- Data Logic ---
-
+// --- Teacher Actions ---
 function addCourse(){
     let t = document.getElementById('courseTitle').value;
-    if(t) db.ref('courses').push({title:t}).then(() => alert("Course Added!"));
+    if(t) db.ref('courses').push({title:t}).then(()=>alert("Course added!"));
 }
 
-function loadCourses(){
-    db.ref('courses').on('value', snap => {
-        let data = snap.val() || {};
-        const list = document.getElementById('courseList');
-        list.innerHTML = "";
-        for(let i in data){
-            let li = document.createElement('li');
-            li.innerText = data[i].title;
-            list.appendChild(li);
-        }
-    });
+function addQuiz(){
+    let q = document.getElementById('q').value;
+    let o1 = document.getElementById('o1').value;
+    let o2 = document.getElementById('o2').value;
+    let a = document.getElementById('ans').value;
+    if(q && a) {
+        db.ref('quizzes').push({q, options:[o1, o2], answer:a}).then(() => alert("Quiz saved!"));
+    }
+}
+
+function checkAnswer(selected, correct) {
+    alert(selected === correct ? "🎉 Correct!" : "❌ Wrong Answer");
 }
 </script>
 </body>
