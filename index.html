@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBOLMS - Official LMS App</title>
+    <title>DBOLMS - Professional Integrated System</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11,7 +11,7 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
     <style>
-        :root { --primary: #007bff; --premium: #ffc107; --success: #28a745; }
+        :root { --primary: #007bff; --premium: #ffc107; --dark: #343a40; --success: #28a745; }
         body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 15px; }
         .container { max-width: 600px; margin: auto; }
         .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -21,10 +21,11 @@
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
         .action-btn { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
         .hidden { display: none; }
-        .course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
+        .course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; display: block; }
         .quiz-item { border-top: 1px solid #eee; padding: 15px 0; margin-top: 10px; }
-        .opt-btn { width: 48%; display: inline-block; background: #6c757d; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 5px; }
+        .opt-btn { width: 48%; display: inline-block; background: #6c757d; color: white; border: none; padding: 10px; cursor: pointer; }
         .premium-box { background: #fff3cd; border: 1px solid #ffeeba; }
+        .admin-section { border-left: 5px solid var(--dark); padding-left: 15px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -37,20 +38,18 @@
 
     <div id="tabStudent">
         <div class="card">
-            <h2>Lessons & Quizzes</h2>
+            <h2>Current Lessons & Courses</h2>
             <div id="courseContainer">Loading courses...</div>
+            <hr>
             <div id="quizList">Loading quizzes...</div>
         </div>
 
         <div class="card premium-box">
-            <h3>💎 Unlock Premium Content</h3>
-            <a href="upi://pay?pa=9612032475@ptsbi&pn=DBOLMS&cu=INR" class="action-btn" style="background:var(--success); text-decoration:none; display:block; text-align:center; margin-bottom:15px;">
-                Pay via UPI App
-            </a>
-            <p style="font-size:12px; color:#666;">Step 1: Pay first. Step 2: Enter Email & UTR below.</p>
-            <input type="email" id="payEmail" placeholder="Your Email Address">
-            <input type="text" id="payUTR" placeholder="12-Digit UTR Number">
-            <button class="action-btn" id="verifyBtn" onclick="processPayment()">Verify Payment & Send OTP</button>
+            <h3>Premium Access for Descriptive Question/Answers</h3>
+            <p>Pay â‚¹200/- at UPI:ðŸ‘‰ <strong>9612032475@ptsbi</strong></p>
+            <input type="email" id="payEmail" placeholder="Email for OTP">
+            <input type="text" id="payUTR" placeholder="12-Digit UTR Number OR Transaction Number">
+            <button class="action-btn" id="verifyBtn" onclick="processPayment()">Verify & Get OTP</button>
         </div>
     </div>
 
@@ -63,13 +62,14 @@
         </div>
 
         <div id="teacherDashDiv" class="hidden">
-            <div class="card">
-                <h3>Add Course (GitHub PNG)</h3>
+            <div class="card admin-section">
+                <h3>Add Course Image (GitHub)</h3>
                 <input type="text" id="cTitle" placeholder="Course Title">
                 <input type="text" id="cImgUrl" placeholder="GitHub PNG Link">
                 <button class="action-btn" style="background:var(--success)" onclick="addCourse()">Upload Course</button>
             </div>
-            <div class="card">
+
+            <div class="card admin-section">
                 <h3>Add New Quiz</h3>
                 <input type="text" id="qText" placeholder="Question">
                 <input type="text" id="qOpt1" placeholder="Option 1">
@@ -77,19 +77,25 @@
                 <input type="text" id="qAns" placeholder="Correct Answer">
                 <button class="action-btn" style="background:var(--success)" onclick="addQuiz()">Upload Quiz</button>
             </div>
+
+            <div class="card admin-section">
+                <h3>Upload Premium Content</h3>
+                <input type="text" id="pdfTitle" placeholder="PDF Title">
+                <input type="text" id="pdfUrl" placeholder="File Link">
+                <button class="action-btn" style="background:var(--success)" onclick="addPDF()">Add Premium</button>
+            </div>
             <button onclick="auth.signOut(); location.reload();">Logout</button>
         </div>
     </div>
 
     <div id="viewOTP" class="hidden card">
-        <h2>Enter OTP</h2>
-        <p>A 6-digit code was sent to your email.</p>
-        <input type="number" id="otpInput" placeholder="Enter OTP">
-        <button class="action-btn" onclick="unlockPremium()">Unlock Premium</button>
+        <h2>Enter Access Code</h2>
+        <input type="number" id="otpInput" placeholder="Enter 6-digit OTP">
+        <button class="action-btn" onclick="unlockPremium()">Unlock Now</button>
     </div>
 
     <div id="viewPremium" class="hidden card">
-        <h2 style="color:var(--premium)">Premium Resource Vault</h2>
+        <h2 style="color:var(--premium)">ðŸ’Ž Premium Vault</h2>
         <div id="pdfList"></div>
         <button class="action-btn" onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
     </div>
@@ -118,7 +124,6 @@ function switchTab(tab) {
     document.getElementById('btnTeach').classList.toggle('active', tab === 'teacher');
 }
 
-// --- TEACHER ACTIONS ---
 function teacherLogin() {
     auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
     .then(() => {
@@ -127,13 +132,20 @@ function teacherLogin() {
     }).catch(err => alert(err.message));
 }
 
+// 1. IMPROVED ADD COURSE (Fixes links before saving)
 function addCourse() {
     let url = document.getElementById('cImgUrl').value;
     if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
         url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
     }
-    db.ref('courses').push({ title: document.getElementById('cTitle').value, img: url })
-    .then(() => alert("Course Uploaded!"));
+    db.ref('courses').push({
+        title: document.getElementById('cTitle').value,
+        img: url
+    }).then(() => {
+        alert("Course Uploaded!");
+        document.getElementById('cTitle').value = "";
+        document.getElementById('cImgUrl').value = "";
+    });
 }
 
 function addQuiz() {
@@ -144,17 +156,28 @@ function addQuiz() {
     }).then(() => alert("Quiz Added!"));
 }
 
-// --- STUDENT SYNC ---
+function addPDF() {
+    db.ref('premium_pdfs').push({ title: document.getElementById('pdfTitle').value, url: document.getElementById('pdfUrl').value });
+    alert("Premium Added!");
+}
+
+// 2. IMPROVED DATA SYNC (Fixes old links on-the-fly)
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
     snap.forEach(child => {
         const item = child.val();
         let displayImg = item.img;
+        
+        // Double-check fix for older entries
         if (displayImg.includes("github.com") && !displayImg.includes("raw.githubusercontent.com")) {
             displayImg = displayImg.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
         }
-        cont.innerHTML += `<div><h3>${item.title}</h3><img src="${displayImg}" class="course-img"></div>`;
+        
+        cont.innerHTML += `<div style="margin-bottom:20px;">
+            <h3 style="margin-bottom:5px;">${item.title}</h3>
+            <img src="${displayImg}" class="course-img" alt="Lesson Graphic">
+        </div>`;
     });
 });
 
@@ -171,48 +194,27 @@ db.ref('quizzes').on('value', snap => {
 });
 
 function check(u, a) {
-    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("Correct!");
-    else alert("Incorrect");
+    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("ðŸŽ‰ Correct!");
+    else alert("âŒ Wrong!");
 }
 
-// --- UPDATED PAYMENT LOGIC (Payment -> Email) ---
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
-    const btn = document.getElementById('verifyBtn');
+    if(!email || utr.length < 12) return alert("Fill details properly.");
 
-    if(!email || utr.length < 12) return alert("Please enter a valid email and 12-digit UTR.");
-
-    btn.disabled = true;
-    btn.innerText = "Verifying...";
-
-    // 1. Logic: Payment (UTR) happened in the past, Email entry is NOW.
-    // In a production app, utrTime would come from your bank statement DB.
-    // For this flow, we simulate that payment happened 2 minutes ago.
-    const utrTime = Date.now() - (2 * 60 * 1000); 
-    const emailTime = Date.now();
-
-    // Verification: Payment must have happened BEFORE or at the same time as email entry
-    if (utrTime > emailTime) {
-        alert("Invalid sequence: Payment record cannot be in the future.");
-        btn.disabled = false; return;
-    }
-
-    const utrSnap = await db.ref('used_utr/' + utr).once('value');
-    if(utrSnap.exists()) {
-        alert("This UTR has already been claimed.");
-        btn.disabled = false; return;
-    }
+    const used = await db.ref('used_utr/' + utr).once('value');
+    if(used.exists()) return alert("This UTR has already been used!");
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const emailKey = email.replace(/\./g, ',');
 
-    await db.ref('active_access/' + emailKey).set({ otp, utr, requestTime: emailTime });
-    await db.ref('used_utr/' + utr).set({ email, paymentTime: utrTime });
+    await db.ref('active_access/' + emailKey).set({ otp, utr });
+    await db.ref('used_utr/' + utr).set({ email });
 
     emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp })
     .then(() => {
-        alert("Payment verified! OTP sent to " + email);
+        alert("OTP Sent to " + email);
         document.getElementById('tabStudent').classList.add('hidden');
         document.getElementById('viewOTP').classList.remove('hidden');
     });
@@ -220,15 +222,17 @@ async function processPayment() {
 
 async function unlockPremium() {
     const emailKey = document.getElementById('payEmail').value.replace(/\./g, ',');
+    const input = document.getElementById('otpInput').value;
     const snap = await db.ref('active_access/' + emailKey).once('value');
-    if(snap.exists() && snap.val().otp === document.getElementById('otpInput').value) {
+    
+    if(snap.exists() && snap.val().otp === input) {
         document.getElementById('viewOTP').classList.add('hidden');
         document.getElementById('viewPremium').classList.remove('hidden');
         db.ref('premium_pdfs').on('value', s => {
             const list = document.getElementById('pdfList'); list.innerHTML = "";
-            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none;">📄 ${c.val().title}</a>`);
+            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">ðŸ“„ ${c.val().title}</a>`);
         });
-    } else alert("Invalid OTP");
+    } else alert("Invalid Code");
 }
 </script>
 </body>
