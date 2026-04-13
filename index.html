@@ -139,9 +139,26 @@ function teacherLogin() {
 }
 
 function addCourse() {
-    const data = { title: document.getElementById('cTitle').value, img: document.getElementById('cImgUrl').value };
-    db.ref('courses').push(data).then(() => alert("Course Uploaded!"));
+    let rawUrl = document.getElementById('cImgUrl').value;
+
+    // This logic converts a standard GitHub link into a Raw Link automatically
+    if (rawUrl.includes("github.com") && !rawUrl.includes("raw.githubusercontent.com")) {
+        rawUrl = rawUrl.replace("github.com", "raw.githubusercontent.com")
+                       .replace("/blob/", "/");
+    }
+
+    const data = { 
+        title: document.getElementById('cTitle').value, 
+        img: rawUrl 
+    };
+
+    db.ref('courses').push(data).then(() => {
+        alert("Course Uploaded with Auto-Fixed Image Link!");
+        document.getElementById('cTitle').value = "";
+        document.getElementById('cImgUrl').value = "";
+    });
 }
+
 
 function addQuiz() {
     const data = {
