@@ -159,14 +159,17 @@ function addPDF() {
 
 // --- STUDENT LOGIC (PULLING DATA) ---
 // 1. Sync Courses (Images from GitHub)
+// Ensure this part of your student data sync is correct
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
     snap.forEach(child => {
         const item = child.val();
+        // The src attribute must receive the raw URL to display properly
         cont.innerHTML += `<div><h3>${item.title}</h3><img src="${item.img}" class="course-img" alt="Course Image"></div>`;
     });
 });
+
 
 // 2. Sync Quizzes
 db.ref('quizzes').on('value', snap => {
