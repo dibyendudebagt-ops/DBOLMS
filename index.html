@@ -45,10 +45,10 @@
         </div>
 
         <div class="card premium-box">
-            <h3>Premium Access for Descriptive Question/Answers</h3>
-            <p>Pay â‚¹200/- at UPI:ðŸ‘‰ <strong>9612032475@ptsbi</strong></p>
+            <h3>Premium Access</h3>
+            <p>Pay UPI: <strong>9612032475@ptsbi</strong></p>
             <input type="email" id="payEmail" placeholder="Email for OTP">
-            <input type="text" id="payUTR" placeholder="12-Digit UTR Number OR Transaction Number">
+            <input type="text" id="payUTR" placeholder="12-Digit UTR Number">
             <button class="action-btn" id="verifyBtn" onclick="processPayment()">Verify & Get OTP</button>
         </div>
     </div>
@@ -95,7 +95,7 @@
     </div>
 
     <div id="viewPremium" class="hidden card">
-        <h2 style="color:var(--premium)">ðŸ’Ž Premium Vault</h2>
+        <h2 style="color:var(--premium)">💎 Premium Vault</h2>
         <div id="pdfList"></div>
         <button class="action-btn" onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
     </div>
@@ -194,35 +194,31 @@ db.ref('quizzes').on('value', snap => {
 });
 
 function check(u, a) {
-    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("ðŸŽ‰ Correct!");
-    else alert("âŒ Wrong!");
+    if(u.trim().toLowerCase() === a.trim().toLowerCase()) alert("🎉 Correct!");
+    else alert("❌ Wrong!");
 }
 
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
+    if(!email || utr.length < 12) return alert("Fill details properly.");
+
+    const used = await db.ref('used_utr/' + utr).once('value');
+    if(used.exists()) return alert("This UTR has already been used!");
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const emailKey = email.replace(/\./g, ',');
 
-    // Step 1: Submit to Server
-    await db.ref('active_access/' + emailKey).set({
-        utr: utr,
-        emailTime: Date.now(),
-        status: "pending" // The server will change this to "verified"
-    });
+    await db.ref('active_access/' + emailKey).set({ otp, utr });
+    await db.ref('used_utr/' + utr).set({ email });
 
-    alert("Payment submitted for server-side verification. Please wait...");
-
-    // Step 2: Listen for the Server's decision
-    db.ref('active_access/' + emailKey + '/status').on('value', (snap) => {
-        if (snap.val() === "verified") {
-            alert("Payment Confirmed by Bank! Sending OTP...");
-            sendOtpViaEmailjs(email); // Call your existing EmailJS function
-        } else if (snap.val() === "rejected") {
-            alert("Payment could not be verified with the bank.");
-        }
+    emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp })
+    .then(() => {
+        alert("OTP Sent to " + email);
+        document.getElementById('tabStudent').classList.add('hidden');
+        document.getElementById('viewOTP').classList.remove('hidden');
     });
 }
-
 
 async function unlockPremium() {
     const emailKey = document.getElementById('payEmail').value.replace(/\./g, ',');
@@ -234,7 +230,7 @@ async function unlockPremium() {
         document.getElementById('viewPremium').classList.remove('hidden');
         db.ref('premium_pdfs').on('value', s => {
             const list = document.getElementById('pdfList'); list.innerHTML = "";
-            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">ðŸ“„ ${c.val().title}</a>`);
+            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">📄 ${c.val().title}</a>`);
         });
     } else alert("Invalid Code");
 }
