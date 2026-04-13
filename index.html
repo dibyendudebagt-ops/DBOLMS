@@ -18,16 +18,12 @@
         .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; }
         .nav-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: #ddd; }
         .nav-btn.active { background: var(--primary); color: white; }
-        
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
         .action-btn { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
         .hidden { display: none; }
-        
-        /* Course/Quiz Display */
-        .course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
+        .course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; display: block; }
         .quiz-item { border-top: 1px solid #eee; padding: 15px 0; margin-top: 10px; }
         .opt-btn { width: 48%; display: inline-block; background: #6c757d; color: white; border: none; padding: 10px; cursor: pointer; }
-        
         .premium-box { background: #fff3cd; border: 1px solid #ffeeba; }
         .admin-section { border-left: 5px solid var(--dark); padding-left: 15px; margin-bottom: 20px; }
     </style>
@@ -44,6 +40,7 @@
         <div class="card">
             <h2>Current Lessons & Courses</h2>
             <div id="courseContainer">Loading courses...</div>
+            <hr>
             <div id="quizList">Loading quizzes...</div>
         </div>
 
@@ -68,7 +65,7 @@
             <div class="card admin-section">
                 <h3>Add Course Image (GitHub)</h3>
                 <input type="text" id="cTitle" placeholder="Course Title">
-                <input type="text" id="cImgUrl" placeholder="GitHub PNG Link (Raw URL)">
+                <input type="text" id="cImgUrl" placeholder="GitHub PNG Link">
                 <button class="action-btn" style="background:var(--success)" onclick="addCourse()">Upload Course</button>
             </div>
 
@@ -118,9 +115,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
-emailjs.init("Tji-49rYlxrXApwqe"); //
+emailjs.init("Tji-49rYlxrXApwqe");
 
-// --- NAVIGATION ---
 function switchTab(tab) {
     document.getElementById('tabStudent').classList.toggle('hidden', tab !== 'student');
     document.getElementById('tabTeacher').classList.toggle('hidden', tab !== 'teacher');
@@ -128,67 +124,63 @@ function switchTab(tab) {
     document.getElementById('btnTeach').classList.toggle('active', tab === 'teacher');
 }
 
-// --- TEACHER LOGIC (PUSHING DATA) ---
 function teacherLogin() {
-    const e = document.getElementById('tEmail').value;
-    const p = document.getElementById('tPass').value;
-    auth.signInWithEmailAndPassword(e, p).then(() => {
+    auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
+    .then(() => {
         document.getElementById('teacherLoginDiv').classList.add('hidden');
         document.getElementById('teacherDashDiv').classList.remove('hidden');
     }).catch(err => alert(err.message));
 }
 
+// 1. IMPROVED ADD COURSE (Fixes links before saving)
 function addCourse() {
-    let rawUrl = document.getElementById('cImgUrl').value;
-
-    // This logic converts a standard GitHub link into a Raw Link automatically
-    if (rawUrl.includes("github.com") && !rawUrl.includes("raw.githubusercontent.com")) {
-        rawUrl = rawUrl.replace("github.com", "raw.githubusercontent.com")
-                       .replace("/blob/", "/");
+    let url = document.getElementById('cImgUrl').value;
+    if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
+        url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
     }
-
-    const data = { 
-        title: document.getElementById('cTitle').value, 
-        img: rawUrl 
-    };
-
-    db.ref('courses').push(data).then(() => {
-        alert("Course Uploaded with Auto-Fixed Image Link!");
+    db.ref('courses').push({
+        title: document.getElementById('cTitle').value,
+        img: url
+    }).then(() => {
+        alert("Course Uploaded!");
         document.getElementById('cTitle').value = "";
         document.getElementById('cImgUrl').value = "";
     });
 }
 
-
 function addQuiz() {
-    const data = {
+    db.ref('quizzes').push({
         q: document.getElementById('qText').value,
         options: [document.getElementById('qOpt1').value, document.getElementById('qOpt2').value],
         answer: document.getElementById('qAns').value
-    };
-    db.ref('quizzes').push(data).then(() => alert("Quiz Added!"));
+    }).then(() => alert("Quiz Added!"));
 }
 
 function addPDF() {
     db.ref('premium_pdfs').push({ title: document.getElementById('pdfTitle').value, url: document.getElementById('pdfUrl').value });
-    alert("Premium Content Added!");
+    alert("Premium Added!");
 }
 
-// --- STUDENT LOGIC (PULLING DATA) ---
-// 1. Sync Courses (Images from GitHub)
-// Ensure this part of your student data sync is correct
+// 2. IMPROVED DATA SYNC (Fixes old links on-the-fly)
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
     snap.forEach(child => {
         const item = child.val();
-        // The src attribute must receive the raw URL to display properly
-        cont.innerHTML += `<div><h3>${item.title}</h3><img src="${item.img}" class="course-img" alt="Course Image"></div>`;
+        let displayImg = item.img;
+        
+        // Double-check fix for older entries
+        if (displayImg.includes("github.com") && !displayImg.includes("raw.githubusercontent.com")) {
+            displayImg = displayImg.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
+        }
+        
+        cont.innerHTML += `<div style="margin-bottom:20px;">
+            <h3 style="margin-bottom:5px;">${item.title}</h3>
+            <img src="${displayImg}" class="course-img" alt="Lesson Graphic">
+        </div>`;
     });
 });
 
-
-// 2. Sync Quizzes
 db.ref('quizzes').on('value', snap => {
     const list = document.getElementById('quizList');
     list.innerHTML = "";
@@ -206,14 +198,13 @@ function check(u, a) {
     else alert("❌ Wrong!");
 }
 
-// --- PAYMENT & OTP ---
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
     if(!email || utr.length < 12) return alert("Fill details properly.");
 
     const used = await db.ref('used_utr/' + utr).once('value');
-    if(used.exists()) return alert("UTR already used.");
+    if(used.exists()) return alert("This UTR has already been used!");
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const emailKey = email.replace(/\./g, ',');
@@ -221,9 +212,9 @@ async function processPayment() {
     await db.ref('active_access/' + emailKey).set({ otp, utr });
     await db.ref('used_utr/' + utr).set({ email });
 
-    emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp }) //
+    emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp })
     .then(() => {
-        alert("OTP Sent!");
+        alert("OTP Sent to " + email);
         document.getElementById('tabStudent').classList.add('hidden');
         document.getElementById('viewOTP').classList.remove('hidden');
     });
@@ -237,18 +228,11 @@ async function unlockPremium() {
     if(snap.exists() && snap.val().otp === input) {
         document.getElementById('viewOTP').classList.add('hidden');
         document.getElementById('viewPremium').classList.remove('hidden');
-        loadPremium();
-    } else alert("Invalid Code");
-}
-
-function loadPremium() {
-    db.ref('premium_pdfs').on('value', snap => {
-        const list = document.getElementById('pdfList');
-        list.innerHTML = "";
-        snap.forEach(child => {
-            list.innerHTML += `<a href="${child.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">📄 ${child.val().title}</a>`;
+        db.ref('premium_pdfs').on('value', s => {
+            const list = document.getElementById('pdfList'); list.innerHTML = "";
+            s.forEach(c => list.innerHTML += `<a href="${c.val().url}" target="_blank" class="action-btn" style="display:block; text-decoration:none; margin:10px 0; text-align:center;">📄 ${c.val().title}</a>`);
         });
-    });
+    } else alert("Invalid Code");
 }
 </script>
 </body>
