@@ -2,71 +2,56 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>LMS - Public Student / Private Teacher</title>
+    <title>LMS - Live Sync</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial; background: #f0f2f5; margin: 0; }
-        .container { padding: 20px; max-width: 800px; margin: auto; }
-        .card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; }
+        body { font-family: Arial; background: #f4f6f9; margin: 0; }
+        .container { padding: 20px; max-width: 600px; margin: auto; }
+        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
         .hidden { display: none; }
-        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
-        .nav button { flex: 1; background: #6c757d; }
-        .quiz-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .quiz-item { border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 10px; }
+        .opt-btn { background: #6c757d; margin: 5px 0; width: 48%; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="nav" id="mainNav">
-        <button onclick="showStudent()">Student View (Public)</button>
-        <button onclick="showLogin()">Teacher Login</button>
+    <div id="navButtons">
+        <button onclick="showView('student')">View as Student</button>
+        <button onclick="showView('login')" style="background:#6c757d">Teacher Login</button>
     </div>
 
     <div id="studentDash">
         <div class="card">
-            <h2>Student Dashboard (Public)</h2>
-            <h3>Available Courses</h3>
-            <ul id="courseList" style="list-style: none; padding: 0;"></ul>
-        </div>
-        <div class="card">
-            <h3>Take a Quiz</h3>
-            <div id="quizBox"></div>
+            <h2>Student Dashboard</h2>
+            <h3>Quizzes</h3>
+            <div id="quizBox">Loading quizzes...</div>
         </div>
     </div>
 
     <div id="loginSection" class="hidden">
         <div class="card">
-            <h2>Teacher Authentication</h2>
-            <input type="email" id="email" placeholder="Admin Email">
+            <h2>Teacher Login</h2>
+            <input type="email" id="email" placeholder="Email">
             <input type="password" id="password" placeholder="Password">
-            <button onclick="login()">Login to Manage</button>
-            <button onclick="showStudent()" style="background:none; color:#007bff; border:none">Cancel</button>
+            <button onclick="login()">Login</button>
         </div>
     </div>
 
     <div id="teacherDash" class="hidden">
         <div class="card">
-            <div style="display:flex; justify-content: space-between; align-items: center;">
-                <h2>Teacher Dashboard</h2>
-                <button onclick="logout()" style="width:100px; background:#dc3545">Logout</button>
-            </div>
+            <button onclick="logout()" style="background:#dc3545">Logout</button>
             <hr>
-            <h3>Add New Course</h3>
-            <input id="courseTitle" placeholder="Course Title">
-            <button onclick="addCourse()" style="background:#28a745">Add Course</button>
-        </div>
-
-        <div class="card">
-            <h3>Add New Quiz</h3>
+            <h3>Create New Quiz</h3>
             <input id="q" placeholder="Question">
             <input id="o1" placeholder="Option 1">
             <input id="o2" placeholder="Option 2">
             <input id="ans" placeholder="Correct Answer">
-            <button onclick="addQuiz()" style="background:#28a745">Add Quiz</button>
+            <button onclick="addQuiz()" style="background:#28a745">Save Quiz</button>
         </div>
     </div>
 </div>
@@ -86,83 +71,78 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// --- View Switching ---
-function showStudent() {
-    document.getElementById('studentDash').classList.remove('hidden');
+// --- Auth & Navigation ---
+function showView(view) {
+    document.getElementById('studentDash').classList.add('hidden');
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('teacherDash').classList.add('hidden');
-    document.getElementById('mainNav').classList.remove('hidden');
+    
+    if(view === 'student') document.getElementById('studentDash').classList.remove('hidden');
+    if(view === 'login') document.getElementById('loginSection').classList.remove('hidden');
 }
 
-function showLogin() {
-    document.getElementById('studentDash').classList.add('hidden');
-    document.getElementById('loginSection').classList.remove('hidden');
-}
-
-// --- Auth Logic ---
 function login() {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
 }
 
-function logout() {
-    auth.signOut().then(() => location.reload());
-}
+function logout() { auth.signOut().then(() => location.reload()); }
 
 auth.onAuthStateChanged(user => {
     if (user) {
-        // Logged in as Teacher/Admin
-        document.getElementById('mainNav').classList.add('hidden');
+        document.getElementById('navButtons').classList.add('hidden');
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('studentDash').classList.add('hidden');
         document.getElementById('teacherDash').classList.remove('hidden');
     }
 });
 
-// --- Public Data Loading (Runs for everyone) ---
-db.ref('courses').on('value', snap => {
-    let data = snap.val() || {};
-    let list = document.getElementById('courseList');
-    list.innerHTML = "";
-    for(let i in data) {
-        list.innerHTML += `<li class="card" style="margin-bottom:5px; background:#f9f9f9">${data[i].title}</li>`;
-    }
-});
+// --- TEACHER ACTIONS ---
+function addQuiz() {
+    const q = document.getElementById('q').value;
+    const o1 = document.getElementById('o1').value;
+    const o2 = document.getElementById('o2').value;
+    const ans = document.getElementById('ans').value;
 
+    if(!q || !ans) return alert("Fill all fields");
+
+    db.ref('quizzes').push({
+        q: q,
+        options: [o1, o2],
+        answer: ans
+    }).then(() => {
+        alert("Saved!");
+        document.getElementById('q').value = ""; // Clear inputs
+    });
+}
+
+// --- LIVE STUDENT DATA (The Fix) ---
+// This runs globally so the student dashboard is always listening
 db.ref('quizzes').on('value', snap => {
-    let data = snap.val() || {};
-    let box = document.getElementById('quizBox');
-    box.innerHTML = "";
+    const data = snap.val() || {};
+    const box = document.getElementById('quizBox');
+    box.innerHTML = ""; // Clear current list
+
     for(let id in data) {
-        let d = data[id];
-        box.innerHTML += `
-            <div class="quiz-item">
-                <p><strong>${d.q}</strong></p>
-                <button onclick="checkAnswer('${d.options[0]}','${d.answer}')">${d.options[0]}</button>
-                <button onclick="checkAnswer('${d.options[1]}','${d.answer}')">${d.options[1]}</button>
-            </div>`;
+        const item = data[id];
+        const div = document.createElement('div');
+        div.className = "quiz-item";
+        div.innerHTML = `
+            <p><strong>${item.q}</strong></p>
+            <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
+            <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
+        `;
+        box.appendChild(div);
+    }
+    
+    if (Object.keys(data).length === 0) {
+        box.innerHTML = "No quizzes available yet.";
     }
 });
 
-// --- Teacher Actions ---
-function addCourse(){
-    let t = document.getElementById('courseTitle').value;
-    if(t) db.ref('courses').push({title:t}).then(()=>alert("Course added!"));
-}
-
-function addQuiz(){
-    let q = document.getElementById('q').value;
-    let o1 = document.getElementById('o1').value;
-    let o2 = document.getElementById('o2').value;
-    let a = document.getElementById('ans').value;
-    if(q && a) {
-        db.ref('quizzes').push({q, options:[o1, o2], answer:a}).then(() => alert("Quiz saved!"));
-    }
-}
-
-function checkAnswer(selected, correct) {
-    alert(selected === correct ? "🎉 Correct!" : "❌ Wrong Answer");
+function check(val, ans) {
+    alert(val === ans ? "Correct!" : "Wrong!");
 }
 </script>
 </body>
