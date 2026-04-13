@@ -55,6 +55,60 @@
         </div>
     </div>
 </div>
+<div class="card">
+    <h3>Add New Course (GitHub Image)</h3>
+    <input id="courseTitle" placeholder="Course Name (e.g., Algebra 101)">
+    <input id="courseImage" placeholder="Image Filename (e.g., lesson1.png)">
+    <button onclick="addCourse()" style="background:#28a745">Add Course</button>
+</div>
+
+<div class="card">
+    <h2>Student Dashboard</h2>
+    <div id="courseContainer">
+        </div>
+</div>
+
+<script>
+// --- Update this with your actual GitHub path ---
+const githubBaseURL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/";
+
+// --- Teacher: Save Title + Filename ---
+function addCourse() {
+    const title = document.getElementById('courseTitle').value;
+    const imgName = document.getElementById('courseImage').value;
+
+    if(title && imgName) {
+        db.ref('courses').push({
+            title: title,
+            imageFile: imgName
+        }).then(() => {
+            alert("Course added to index!");
+            document.getElementById('courseTitle').value = "";
+            document.getElementById('courseImage').value = "";
+        });
+    }
+}
+
+// --- Student: Render the Image from GitHub ---
+db.ref('courses').on('value', snap => {
+    const data = snap.val() || {};
+    const container = document.getElementById('courseContainer');
+    container.innerHTML = "";
+
+    for(let id in data) {
+        const course = data[id];
+        const fullURL = githubBaseURL + course.imageFile;
+
+        container.innerHTML += `
+            <div class="card" style="border:1px solid #ddd">
+                <h4>${course.title}</h4>
+                <img src="${fullURL}" alt="Course Page" style="width:100%; border-radius:5px; cursor:pointer" onclick="window.open('${fullURL}')">
+                <p style="font-size:12px; color:#666">Source: GitHub/${course.imageFile}</p>
+            </div>
+        `;
+    }
+});
+</script>
 
 <script>
 const firebaseConfig = {
