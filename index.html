@@ -1,48 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LMS - Integrated</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBOLMS - Automated Premium LMS</title>
+    
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
     <style>
-        body { font-family: Arial; background: #f4f6f9; margin: 0; }
-        .container { padding: 20px; max-width: 600px; margin: auto; }
-        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; color: #333; }
+        .container { padding: 15px; max-width: 500px; margin: auto; }
+        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h2 { color: #007bff; margin-top: 0; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .hidden { display: none; }
-        .quiz-item { border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 10px; }
-        .opt-btn { background: #6c757d; margin: 5px 0; width: 48%; display: inline-block; }
-        img.course-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
+        .premium-box { background: #fff3cd; border: 1px solid #ffeeba; }
+        .pdf-item { display: block; background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 8px; text-decoration: none; color: #495057; font-weight: 600; text-align: center; }
+        .quiz-item { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .opt-btn { width: 48%; display: inline-block; background: #6c757d; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="navButtons">
-        <button onclick="showView('student')">View as Student</button>
+    <div id="navGroup">
+        <button onclick="showView('student')">Student Dashboard</button>
         <button onclick="showView('login')" style="background:#6c757d">Teacher Login</button>
     </div>
 
     <div id="studentDash">
         <div class="card">
-            <h2>Student Dashboard</h2>
-            <h3>Courses</h3>
-            <div id="courseContainer">Loading courses...</div>
+            <h2>Lessons & Quizzes</h2>
+            <div id="courseList"></div>
             <hr>
-            <h3>Quizzes</h3>
-            <div id="quizBox">Loading quizzes...</div>
+            <div id="quizList"></div>
+        </div>
+
+        <div class="card premium-box">
+            <h3>Descriptive Answers (Premium)</h3>
+            <p>1. Pay via UPI: <strong>your-upi-id@okicici</strong></p>
+            <input type="email" id="payEmail" placeholder="Enter Email">
+            <input type="text" id="payUTR" placeholder="12-Digit Transaction ID (UTR)">
+            <button id="verifyBtn" onclick="validateAndSendOTP()">Verify Payment & Get OTP</button>
         </div>
     </div>
 
-    <div id="loginSection" class="hidden">
+    <div id="otpSection" class="hidden">
         <div class="card">
-            <h2>Teacher Login</h2>
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Password">
-            <button onclick="login()">Login</button>
+            <h2>Enter Access Code</h2>
+            <p>Check your email for the 6-digit code.</p>
+            <input type="number" id="otpInput" placeholder="6-Digit OTP">
+            <button onclick="verifyOTP()">Unlock Dashboard</button>
+            <button onclick="showView('student')" style="background:none; color:#007bff; border:none">Cancel</button>
+        </div>
+    </div>
+
+    <div id="premiumDash" class="hidden">
+        <div class="card" style="border-top: 5px solid #ffc107;">
+            <h2>💎 Premium Notes</h2>
+            <div id="pdfList"></div>
+            <button onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
         </div>
     </div>
 
@@ -50,23 +73,30 @@
         <div class="card">
             <button onclick="logout()" style="background:#dc3545">Logout</button>
             <hr>
-            <h3>Add New Course (GitHub Image)</h3>
-            <input id="courseTitle" placeholder="Course Name (e.g., Algebra)">
-            <input id="courseImage" placeholder="Image Filename (e.g., page1.png)">
-            <button onclick="addCourse()" style="background:#28a745">Save Course</button>
+            <h3>Upload PDF Link</h3>
+            <input id="pTitle" placeholder="Title">
+            <input id="pUrl" placeholder="PDF URL">
+            <button onclick="addPDF()" style="background:#28a745">Add Premium PDF</button>
             <hr>
-            <h3>Create New Quiz</h3>
-            <input id="q" placeholder="Question">
-            <input id="o1" placeholder="Option 1">
-            <input id="o2" placeholder="Option 2">
-            <input id="ans" placeholder="Correct Answer">
-            <button onclick="addQuiz()" style="background:#28a745">Save Quiz</button>
+            <h3>Add Course Image</h3>
+            <input id="cTitle" placeholder="Course Name">
+            <input id="cFile" placeholder="Filename.png">
+            <button onclick="addCourse()" style="background:#28a745">Add Course</button>
+        </div>
+    </div>
+
+    <div id="loginSection" class="hidden">
+        <div class="card">
+            <h2>Teacher Login</h2>
+            <input type="email" id="tEmail" placeholder="Admin Email">
+            <input type="password" id="tPass" placeholder="Password">
+            <button onclick="login()">Login</button>
         </div>
     </div>
 </div>
 
 <script>
-// --- CONFIGURATION ---
+// --- INITIALIZATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
     authDomain: "dbolms.firebaseapp.com",
@@ -77,111 +107,130 @@ const firebaseConfig = {
     appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
-// URL should point to the repository root (ends in /main/)
-const githubBaseURL = "https://raw.githubusercontent.com/dibyendudebagt-ops/DBOLMS/main/";
+const githubBase = "https://raw.githubusercontent.com/dibyendudebagt-ops/DBOLMS/main/";
 
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
 const db = firebase.database();
+const auth = firebase.auth();
+emailjs.init("YOUR_EMAILJS_PUBLIC_KEY"); // Update this!
 
-// --- NAVIGATION & AUTH ---
-function showView(view) {
-    document.getElementById('studentDash').classList.add('hidden');
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('teacherDash').classList.add('hidden');
-    
-    if(view === 'student') document.getElementById('studentDash').classList.remove('hidden');
-    if(view === 'login') document.getElementById('loginSection').classList.remove('hidden');
+// --- VIEW CONTROLLER ---
+function showView(v) {
+    const views = ['studentDash', 'otpSection', 'premiumDash', 'teacherDash', 'loginSection'];
+    views.forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(v + (v.includes('Dash') ? '' : 'Section') || v).classList.remove('hidden');
+}
+
+// --- AUTOMATED PAYMENT & OTP LOGIC ---
+async function validateAndSendOTP() {
+    const email = document.getElementById('payEmail').value;
+    const utr = document.getElementById('payUTR').value;
+    const btn = document.getElementById('verifyBtn');
+
+    if (!email || utr.length < 12) return alert("Enter valid Email and 12-digit UTR.");
+
+    btn.disabled = true;
+    btn.innerText = "Verifying Transaction...";
+
+    // Check if UTR is already used
+    const utrSnap = await db.ref('used_utr/' + utr).once('value');
+    if (utrSnap.exists()) {
+        alert("This Transaction ID has already been used.");
+        btn.disabled = false;
+        return;
+    }
+
+    // Generate and Save OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailKey = email.replace(/\./g, ',');
+
+    await db.ref('active_access/' + emailKey).set({
+        otp: otp,
+        utr: utr,
+        time: Date.now()
+    });
+
+    await db.ref('used_utr/' + utr).set({ email: email });
+
+    // Send Email via EmailJS
+    emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+        to_email: email,
+        otp_code: otp
+    }).then(() => {
+        alert("Transaction Verified! OTP sent to your email.");
+        showView('otp');
+    });
+}
+
+async function verifyOTP() {
+    const email = document.getElementById('payEmail').value;
+    const code = document.getElementById('otpInput').value;
+    const emailKey = email.replace(/\./g, ',');
+
+    const snap = await db.ref('active_access/' + emailKey).once('value');
+    const data = snap.val();
+
+    if (data && data.otp === code) {
+        alert("Payment Validated. Welcome to Premium!");
+        showView('premiumDash');
+        loadPremiumContent();
+    } else {
+        alert("Invalid OTP.");
+    }
+}
+
+// --- DATA LOADING ---
+function loadPremiumContent() {
+    db.ref('premium_pdfs').on('value', snap => {
+        const data = snap.val() || {};
+        const list = document.getElementById('pdfList');
+        list.innerHTML = "";
+        for(let id in data) {
+            list.innerHTML += `<a href="${data[id].url}" target="_blank" class="pdf-item">📄 ${data[id].title}</a>`;
+        }
+    });
+}
+
+db.ref('courses').on('value', snap => {
+    const data = snap.val() || {};
+    const div = document.getElementById('courseList');
+    div.innerHTML = "";
+    for(let id in data) {
+        div.innerHTML += `<div><strong>${data[id].title}</strong><br><img src="${githubBase + data[id].imageFile}" style="width:100%; border-radius:8px; margin:10px 0;"></div>`;
+    }
+});
+
+db.ref('quizzes').on('value', snap => {
+    const data = snap.val() || {};
+    const div = document.getElementById('quizList');
+    div.innerHTML = "<h3>Quizzes</h3>";
+    for(let id in data) {
+        const item = data[id];
+        div.innerHTML += `<div class="quiz-item"><p>${item.q}</p>
+            <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
+            <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
+        </div>`;
+    }
+});
+
+function check(v, a) {
+    alert(v.trim().toLowerCase() === a.trim().toLowerCase() ? "🎉 Correct!" : "❌ Wrong");
+}
+
+// --- TEACHER ACTIONS ---
+function addPDF() {
+    const title = document.getElementById('pTitle').value;
+    const url = document.getElementById('pUrl').value;
+    if(title && url) db.ref('premium_pdfs').push({title, url}).then(()=>alert("PDF Added"));
 }
 
 function login() {
-    const e = document.getElementById('email').value;
-    const p = document.getElementById('password').value;
-    auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
+    auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
+    .catch(e => alert(e.message));
 }
-
 function logout() { auth.signOut().then(() => location.reload()); }
-
-auth.onAuthStateChanged(user => {
-    if (user) {
-        document.getElementById('navButtons').classList.add('hidden');
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('studentDash').classList.add('hidden');
-        document.getElementById('teacherDash').classList.remove('hidden');
-    }
-});
-
-// --- TEACHER ACTIONS ---
-function addCourse() {
-    const title = document.getElementById('courseTitle').value;
-    const imgName = document.getElementById('courseImage').value;
-    if(title && imgName) {
-        db.ref('courses').push({ title, imageFile: imgName })
-        .then(() => {
-            alert("Course Added!");
-            document.getElementById('courseTitle').value = "";
-            document.getElementById('courseImage').value = "";
-        });
-    }
-}
-
-function addQuiz() {
-    const q = document.getElementById('q').value;
-    const o1 = document.getElementById('o1').value;
-    const o2 = document.getElementById('o2').value;
-    const ans = document.getElementById('ans').value;
-    if(q && ans) {
-        db.ref('quizzes').push({ q, options: [o1, o2], answer: ans })
-        .then(() => {
-            alert("Quiz Saved!");
-            document.getElementById('q').value = "";
-        });
-    }
-}
-
-// --- DATA LOADING (STUDENT VIEW) ---
-// Load Courses
-db.ref('courses').on('value', snap => {
-    const data = snap.val() || {};
-    const container = document.getElementById('courseContainer');
-    container.innerHTML = "";
-    for(let id in data) {
-        const course = data[id];
-        const fullURL = githubBaseURL + course.imageFile;
-        container.innerHTML += `
-            <div style="margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:10px;">
-                <strong>${course.title}</strong><br>
-                <img src="${fullURL}" class="course-img" alt="Lesson">
-            </div>`;
-    }
-});
-
-// Load Quizzes
-db.ref('quizzes').on('value', snap => {
-    const data = snap.val() || {};
-    const box = document.getElementById('quizBox');
-    box.innerHTML = "";
-    for(let id in data) {
-        const item = data[id];
-        box.innerHTML += `
-            <div class="quiz-item">
-                <p>${item.q}</p>
-                <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
-                <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
-            </div>`;
-    }
-});
-
-function check(val, ans) {
-    // .trim() removes any accidental spaces at the start or end
-    // .toLowerCase() makes sure "Mobile" matches "mobile"
-    if (val.trim().toLowerCase() === ans.trim().toLowerCase()) {
-        alert("🎉 Correct!");
-    } else {
-        alert("❌ Wrong!");
-    }
-}
-
+auth.onAuthStateChanged(user => { if(user) { showView('teacherDash'); document.getElementById('navGroup').classList.add('hidden'); } });
 </script>
+
 </body>
 </html>
