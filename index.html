@@ -173,8 +173,15 @@ db.ref('quizzes').on('value', snap => {
 });
 
 function check(val, ans) {
-    alert(val === ans ? "Correct!" : "Wrong!");
+    // .trim() removes any accidental spaces at the start or end
+    // .toLowerCase() makes sure "Mobile" matches "mobile"
+    if (val.trim().toLowerCase() === ans.trim().toLowerCase()) {
+        alert("🎉 Correct!");
+    } else {
+        alert("❌ Wrong!");
+    }
 }
+
 </script>
 </body>
 </html>
