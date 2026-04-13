@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBOLMS - Automated Premium LMS</title>
+    <title>DBOLMS - Fully Automated Premium</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -11,17 +11,17 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; color: #333; }
-        .container { padding: 15px; max-width: 500px; margin: auto; }
-        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; padding: 15px; }
+        .container { max-width: 500px; margin: auto; }
+        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h2 { color: #007bff; margin-top: 0; }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         .hidden { display: none; }
         .premium-box { background: #fff3cd; border: 1px solid #ffeeba; }
-        .pdf-item { display: block; background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 8px; text-decoration: none; color: #495057; font-weight: 600; text-align: center; }
+        .pdf-link { display: block; background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 8px; text-decoration: none; color: #333; font-weight: 600; text-align: center; }
         .quiz-item { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
         .opt-btn { width: 48%; display: inline-block; background: #6c757d; font-size: 14px; }
     </style>
@@ -29,74 +29,42 @@
 <body>
 
 <div class="container">
-    <div id="navGroup">
-        <button onclick="showView('student')">Student Dashboard</button>
-        <button onclick="showView('login')" style="background:#6c757d">Teacher Login</button>
-    </div>
-
     <div id="studentDash">
         <div class="card">
-            <h2>Lessons & Quizzes</h2>
-            <div id="courseList"></div>
-            <hr>
-            <div id="quizList"></div>
+            <h2>Quizzes & Lessons</h2>
+            <div id="quizList">Loading content...</div>
         </div>
 
         <div class="card premium-box">
             <h3>Descriptive Answers (Premium)</h3>
-            <p>1. Pay via UPI CLICK 👉: <strong>9612032475@ptsbi</strong></p>
-            <input type="email" id="payEmail" placeholder="Enter Email">
+            <p>1. Pay via UPI to 👉: <strong>9612032475@ptsbi</strong></p>
+            <input type="email" id="payEmail" placeholder="Your Email Address">
             <input type="text" id="payUTR" placeholder="12-Digit Transaction ID (UTR)">
-            <button id="verifyBtn" onclick="validateAndSendOTP()">Verify Payment & Get OTP</button>
+            <button id="verifyBtn" onclick="processPayment()">Verify & Get Access Code</button>
         </div>
     </div>
 
     <div id="otpSection" class="hidden">
         <div class="card">
             <h2>Enter Access Code</h2>
-            <p>Check your email for the 6-digit code.</p>
-            <input type="number" id="otpInput" placeholder="6-Digit OTP">
-            <button onclick="verifyOTP()">Unlock Dashboard</button>
-            <button onclick="showView('student')" style="background:none; color:#007bff; border:none">Cancel</button>
+            <p>Check your email for the 6-digit passcode.</p>
+            <input type="number" id="otpInput" placeholder="Enter OTP">
+            <button onclick="unlockDashboard()">Unlock Dashboard</button>
+            <button onclick="location.reload()" style="background:none; color:#666; font-size:12px;">Back</button>
         </div>
     </div>
 
     <div id="premiumDash" class="hidden">
         <div class="card" style="border-top: 5px solid #ffc107;">
-            <h2>💎 Premium Notes</h2>
+            <h2 style="color: #d39e00;">💎 Premium Resources</h2>
             <div id="pdfList"></div>
             <button onclick="location.reload()" style="background:#dc3545">Lock & Exit</button>
-        </div>
-    </div>
-
-    <div id="teacherDash" class="hidden">
-        <div class="card">
-            <button onclick="logout()" style="background:#dc3545">Logout</button>
-            <hr>
-            <h3>Upload PDF Link</h3>
-            <input id="pTitle" placeholder="Title">
-            <input id="pUrl" placeholder="PDF URL">
-            <button onclick="addPDF()" style="background:#28a745">Add Premium PDF</button>
-            <hr>
-            <h3>Add Course Image</h3>
-            <input id="cTitle" placeholder="Course Name">
-            <input id="cFile" placeholder="Filename.png">
-            <button onclick="addCourse()" style="background:#28a745">Add Course</button>
-        </div>
-    </div>
-
-    <div id="loginSection" class="hidden">
-        <div class="card">
-            <h2>Teacher Login</h2>
-            <input type="email" id="tEmail" placeholder="Admin Email">
-            <input type="password" id="tPass" placeholder="Password">
-            <button onclick="login()">Login</button>
         </div>
     </div>
 </div>
 
 <script>
-// --- INITIALIZATION ---
+// --- CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
     authDomain: "dbolms.firebaseapp.com",
@@ -107,130 +75,111 @@ const firebaseConfig = {
     appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
-const githubBase = "https://raw.githubusercontent.com/dibyendudebagt-ops/DBOLMS/main/";
-
+// Initialize Firebase & EmailJS
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
-emailjs.init("YOUR_EMAILJS_PUBLIC_KEY"); // Update this!
+emailjs.init("Tji-49rYlxrXApwqe"); 
 
-// --- VIEW CONTROLLER ---
-function showView(v) {
-    const views = ['studentDash', 'otpSection', 'premiumDash', 'teacherDash', 'loginSection'];
-    views.forEach(id => document.getElementById(id).classList.add('hidden'));
-    document.getElementById(v + (v.includes('Dash') ? '' : 'Section') || v).classList.remove('hidden');
-}
+const SERVICE_ID = 'service_rand3au';
+const TEMPLATE_ID = 'template_tvjg21i';
 
-// --- AUTOMATED PAYMENT & OTP LOGIC ---
-async function validateAndSendOTP() {
-    const email = document.getElementById('payEmail').value;
-    const utr = document.getElementById('payUTR').value;
+// --- AUTOMATION LOGIC ---
+async function processPayment() {
+    const emailValue = document.getElementById('payEmail').value;
+    const utrValue = document.getElementById('payUTR').value;
     const btn = document.getElementById('verifyBtn');
 
-    if (!email || utr.length < 12) return alert("Enter valid Email and 12-digit UTR.");
+    if (!emailValue || utrValue.length < 12) {
+        return alert("Please enter a valid email and 12-digit UTR number.");
+    }
 
     btn.disabled = true;
-    btn.innerText = "Verifying Transaction...";
+    btn.innerText = "Checking Transaction...";
 
-    // Check if UTR is already used
-    const utrSnap = await db.ref('used_utr/' + utr).once('value');
-    if (utrSnap.exists()) {
-        alert("This Transaction ID has already been used.");
+    try {
+        // 1. Validate UTR uniqueness in Firebase
+        const utrSnap = await db.ref('used_utr/' + utrValue).once('value');
+        if (utrSnap.exists()) {
+            alert("This Transaction ID has already been used.");
+            btn.disabled = false;
+            btn.innerText = "Verify & Get Access Code";
+            return;
+        }
+
+        // 2. Generate OTP & Store Session
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const emailKey = emailValue.replace(/\./g, ',');
+
+        await db.ref('active_access/' + emailKey).set({ otp, utr: utrValue, time: Date.now() });
+        await db.ref('used_utr/' + utrValue).set({ email: emailValue });
+
+        // 3. Trigger Email (Using variables: email, passcode)
+        emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+            email: emailValue,   // Matches {{email}} in template
+            passcode: otp,      // Matches {{passcode}} in template
+            time: "15 minutes"
+        }).then(() => {
+            alert("UTR Verified! OTP has been sent to your email.");
+            document.getElementById('studentDash').classList.add('hidden');
+            document.getElementById('otpSection').classList.remove('hidden');
+        });
+
+    } catch (err) {
+        alert("Verification failed. Check your internet or contact support.");
         btn.disabled = false;
-        return;
+        btn.innerText = "Verify & Get Access Code";
     }
-
-    // Generate and Save OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const emailKey = email.replace(/\./g, ',');
-
-    await db.ref('active_access/' + emailKey).set({
-        otp: otp,
-        utr: utr,
-        time: Date.now()
-    });
-
-    await db.ref('used_utr/' + utr).set({ email: email });
-
-    // Send Email via EmailJS
-    emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
-        to_email: email,
-        otp_code: otp
-    }).then(() => {
-        alert("Transaction Verified! OTP sent to your email.");
-        showView('otp');
-    });
 }
 
-async function verifyOTP() {
-    const email = document.getElementById('payEmail').value;
-    const code = document.getElementById('otpInput').value;
-    const emailKey = email.replace(/\./g, ',');
+async function unlockDashboard() {
+    const emailKey = document.getElementById('payEmail').value.replace(/\./g, ',');
+    const enteredOtp = document.getElementById('otpInput').value;
 
     const snap = await db.ref('active_access/' + emailKey).once('value');
-    const data = snap.val();
-
-    if (data && data.otp === code) {
-        alert("Payment Validated. Welcome to Premium!");
-        showView('premiumDash');
+    if (snap.exists() && snap.val().otp === enteredOtp) {
+        alert("Access Granted!");
+        document.getElementById('otpSection').classList.add('hidden');
+        document.getElementById('premiumDash').classList.remove('hidden');
         loadPremiumContent();
     } else {
-        alert("Invalid OTP.");
+        alert("Invalid Access Code. Please check your email again.");
     }
 }
 
-// --- DATA LOADING ---
+// --- CONTENT LOADING ---
 function loadPremiumContent() {
     db.ref('premium_pdfs').on('value', snap => {
         const data = snap.val() || {};
-        const list = document.getElementById('pdfList');
-        list.innerHTML = "";
+        const cont = document.getElementById('pdfList');
+        cont.innerHTML = "";
         for(let id in data) {
-            list.innerHTML += `<a href="${data[id].url}" target="_blank" class="pdf-item">📄 ${data[id].title}</a>`;
+            cont.innerHTML += `<a href="${data[id].url}" target="_blank" class="pdf-link">📄 ${data[id].title}</a>`;
         }
     });
 }
 
-db.ref('courses').on('value', snap => {
-    const data = snap.val() || {};
-    const div = document.getElementById('courseList');
-    div.innerHTML = "";
-    for(let id in data) {
-        div.innerHTML += `<div><strong>${data[id].title}</strong><br><img src="${githubBase + data[id].imageFile}" style="width:100%; border-radius:8px; margin:10px 0;"></div>`;
-    }
-});
-
 db.ref('quizzes').on('value', snap => {
     const data = snap.val() || {};
     const div = document.getElementById('quizList');
-    div.innerHTML = "<h3>Quizzes</h3>";
+    div.innerHTML = "";
     for(let id in data) {
         const item = data[id];
-        div.innerHTML += `<div class="quiz-item"><p>${item.q}</p>
+        div.innerHTML += `<div class="quiz-item">
+            <p><strong>Q:</strong> ${item.q}</p>
             <button class="opt-btn" onclick="check('${item.options[0]}','${item.answer}')">${item.options[0]}</button>
             <button class="opt-btn" onclick="check('${item.options[1]}','${item.answer}')">${item.options[1]}</button>
         </div>`;
     }
 });
 
-function check(v, a) {
-    alert(v.trim().toLowerCase() === a.trim().toLowerCase() ? "🎉 Correct!" : "❌ Wrong");
+// Smart Check Logic
+function check(val, ans) {
+    if (val.trim().toLowerCase() === ans.trim().toLowerCase()) {
+        alert("🎉 Correct!");
+    } else {
+        alert("❌ Wrong!");
+    }
 }
-
-// --- TEACHER ACTIONS ---
-function addPDF() {
-    const title = document.getElementById('pTitle').value;
-    const url = document.getElementById('pUrl').value;
-    if(title && url) db.ref('premium_pdfs').push({title, url}).then(()=>alert("PDF Added"));
-}
-
-function login() {
-    auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
-    .catch(e => alert(e.message));
-}
-function logout() { auth.signOut().then(() => location.reload()); }
-auth.onAuthStateChanged(user => { if(user) { showView('teacherDash'); document.getElementById('navGroup').classList.add('hidden'); } });
 </script>
-
 </body>
 </html>
