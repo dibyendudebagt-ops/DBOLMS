@@ -1,120 +1,139 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Simple LMS (No Login)</title><script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script><script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script><style>
-body{font-family:Arial;background:#f4f6f9;margin:0}
-.container{padding:20px}
-.card{background:#fff;padding:15px;margin-bottom:15px;border-radius:10px}
-select,button,input{width:100%;padding:10px;margin:5px 0}
-</style></head><body><div class="container">
-<div class="card">
-<h2>Select Role</h2>
-<select id="role" onchange="loadDash()">
-<option value="">--Select--</option>
-<option value="teacher">Teacher</option>
-<option value="student">Student</option>
-</select>
-</div>
-</div><div class="container" id="teacherDash" style="display:none;">
-<h2>Teacher Dashboard</h2><div class="card">
-<h3>Add Course</h3>
-<input id="courseTitle" placeholder="Course Title">
-<button onclick="addCourse()">Add</button>
-</div><div class="card">
-<h3>Add Quiz</h3>
-<input id="q" placeholder="Question">
-<input id="o1" placeholder="Option 1">
-<input id="o2" placeholder="Option 2">
-<input id="ans" placeholder="Answer">
-<button onclick="addQuiz()">Add Quiz</button>
-</div>
-</div><div class="container" id="studentDash" style="display:none;">
-<h2>Student Dashboard</h2><div class="card">
-<h3>Courses</h3>
-<ul id="courseList"></ul>
-</div><div class="card">
-<h3>Quiz</h3>
-<div id="quizBox"></div>
-</div>
-</div><script>
+    <meta charset="UTF-8">
+    <title>LMS with Login</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: Arial; background: #f4f6f9; margin: 0; }
+        .container { padding: 20px; max-width: 600px; margin: auto; }
+        .card { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  
+<div class="container" id="loginSection">
+    <div class="card">
+        <h2>LMS Login</h2>
+        <input type="email" id="email" placeholder="Email (e.g., dibyendu.d82@tripura.gov.in)">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<div class="container hidden" id="teacherDash">
+    <div class="card">
+        <h2>Teacher Dashboard</h2>
+        <button onclick="logout()" style="background:#dc3545">Logout</button>
+        <hr>
+        <h3>Add Course</h3>
+        <input id="courseTitle" placeholder="Course Title">
+        <button onclick="addCourse()">Add Course</button>
+    </div>
+</div>
+
+<div class="container hidden" id="studentDash">
+    <div class="card">
+        <h2>Student Dashboard</h2>
+        <button onclick="logout()" style="background:#dc3545">Logout</button>
+        <hr>
+        <h3>Available Courses</h3>
+        <ul id="courseList"></ul>
+    </div>
+</div>
+
+<script>
 const firebaseConfig = {
-  apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
-  authDomain: "dbolms.firebaseapp.com",
-  databaseURL: "https://dbolms-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "dbolms",
-  storageBucket: "dbolms.firebasestorage.app",
-  messagingSenderId: "41869582709",
-  appId: "1:41869582709:web:34faa1737997f723cb333c",
-  measurementId: "G-9R4Q8VG1P0"
+    apiKey: "AIzaSyAnCKeq1X-ml3oHWEVXcbIKflnC3hBEaMM",
+    authDomain: "dbolms.firebaseapp.com",
+    databaseURL: "https://dbolms-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "dbolms",
+    storageBucket: "dbolms.firebasestorage.app",
+    messagingSenderId: "41869582709",
+    appId: "1:41869582709:web:34faa1737997f723cb333c"
 };
 
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+const auth = firebase.auth();
+const db = firebase.database();
 
-function loadDash(){
- let role=document.getElementById('role').value;
+// --- Authentication Logic ---
 
- document.getElementById('teacherDash').style.display="none";
- document.getElementById('studentDash').style.display="none";
+function login() {
+    const email = document.getElementById('email').value;
+    const pass = document.getElementById('password').value;
 
- if(role==="teacher"){
-   document.getElementById('teacherDash').style.display="block";
- }
-
- if(role==="student"){
-   document.getElementById('studentDash').style.display="block";
-   loadCourses();
-   loadQuiz();
- }
+    auth.signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            // Success! The onAuthStateChanged listener below will handle the rest
+        })
+        .catch((error) => {
+            alert("Login Failed: " + error.message);
+        });
 }
+
+function logout() {
+    auth.signOut().then(() => {
+        location.reload();
+    });
+}
+
+// Monitor Auth State
+auth.onAuthStateChanged(user => {
+    if (user) {
+        // User is signed in, now check their role in the database
+        checkUserRole(user.uid);
+    } else {
+        showSection('loginSection');
+    }
+});
+
+function checkUserRole(uid) {
+    // This matches the structure in your screenshot
+    db.ref('users/' + uid).once('value').then(snapshot => {
+        const userData = snapshot.val();
+        if (userData && userData.role === "admin") {
+            showSection('teacherDash');
+        } else {
+            showSection('studentDash');
+            loadCourses();
+        }
+    });
+}
+
+function showSection(id) {
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('teacherDash').classList.add('hidden');
+    document.getElementById('studentDash').classList.add('hidden');
+    document.getElementById(id).classList.remove('hidden');
+}
+
+// --- Data Logic ---
 
 function addCourse(){
- let t=document.getElementById('courseTitle').value;
- db.ref('courses').push({title:t});
-}
-
-function addQuiz(){
- let q=document.getElementById('q').value;
- let o1=document.getElementById('o1').value;
- let o2=document.getElementById('o2').value;
- let a=document.getElementById('ans').value;
- db.ref('quizzes').push({q,options:[o1,o2],answer:a});
+    let t = document.getElementById('courseTitle').value;
+    if(t) db.ref('courses').push({title:t}).then(() => alert("Course Added!"));
 }
 
 function loadCourses(){
- db.ref('courses').on('value',snap=>{
-   let data=snap.val()||{};
-   courseList.innerHTML="";
-   for(let i in data){
-     let li=document.createElement('li');
-     li.innerText=data[i].title;
-     courseList.appendChild(li);
-   }
- });
+    db.ref('courses').on('value', snap => {
+        let data = snap.val() || {};
+        const list = document.getElementById('courseList');
+        list.innerHTML = "";
+        for(let i in data){
+            let li = document.createElement('li');
+            li.innerText = data[i].title;
+            list.appendChild(li);
+        }
+    });
 }
-
-function loadQuiz(){
- db.ref('quizzes').on('value',snap=>{
-   let data=snap.val()||{};
-   quizBox.innerHTML="";
-
-   for(let id in data){
-     let d=data[id];
-     let div=document.createElement('div');
-     div.innerHTML=`<p>${d.q}</p>
-     <button onclick="check('${d.options[0]}','${d.answer}')">${d.options[0]}</button>
-     <button onclick="check('${d.options[1]}','${d.answer}')">${d.options[1]}</button>`;
-     quizBox.appendChild(div);
-   }
- });
-}
-
-function check(ans,correct){
- alert(ans==correct?"Correct":"Wrong");
-}
-
-</script></body>
+</script>
+</body>
 </html>
