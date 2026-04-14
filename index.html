@@ -247,7 +247,7 @@ async function processPayment() {
         otpSent: false // Initialize this to false
     });
 
-    alert("Request submitted. Waiting for bank verification...");
+    alert("Request submitted. Waiting for teachers verification & approval...");
 
     // 2. NOW start the listener for this specific emailKey
     db.ref('active_access/' + emailKey).on('value', (snapshot) => {
@@ -266,6 +266,40 @@ async function processPayment() {
             // Trigger the EmailJS function
             sendOtpViaEmailjs(data.email, otp);
         }
+    });
+}
+
+function loadPendingRequests() {
+    const container = document.getElementById('pendingList');
+    container.innerHTML = "Checking database...";
+
+    // Use 'on' to listen for any changes in real-time
+    db.ref('active_access').on('value', snap => {
+        container.innerHTML = "";
+        let found = false;
+
+        if (snap.exists()) {
+            snap.forEach(child => {
+                const req = child.val();
+                // Check for 'pending' status manually to be safe
+                if (req.status === "pending") {
+                    found = true;
+                    container.innerHTML += `
+                        <div class="req-item" style="background:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;">
+                            <p><strong>Email:</strong> ${req.email}</p>
+                            <p><strong>UTR:</strong> ${req.utr}</p>
+                            <button class="action-btn" style="background:var(--success)" 
+                                onclick="approveRequest('${child.key}')">Approve & Send OTP</button>
+                        </div>`;
+                }
+            });
+        }
+
+        if (!found) {
+            container.innerHTML = "No pending requests found.";
+        }
+    }, error => {
+        container.innerHTML = "Error: " + error.message;
     });
 }
 
