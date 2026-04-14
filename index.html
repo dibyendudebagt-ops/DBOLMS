@@ -201,22 +201,39 @@ function check(u, a) {
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
+    
     if(!email || utr.length < 12) return alert("Fill details properly.");
 
-    const used = await db.ref('used_utr/' + utr).once('value');
-    if(used.exists()) return alert("This UTR has already been used!");
+    const emailKey = email.replace(/\./g, ','); // Define emailKey here
+    
+    // 1. Submit the pending request
+    await db.ref('active_access/' + emailKey).set({
+        email: email,
+        utr: utr,
+        emailTime: Date.now(),
+        status: "pending",
+        otpSent: false // Initialize this to false
+    });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const emailKey = email.replace(/\./g, ',');
+    alert("Request submitted. Waiting for bank verification...");
 
-    await db.ref('active_access/' + emailKey).set({ otp, utr });
-    await db.ref('used_utr/' + utr).set({ email });
-
-    emailjs.send('service_rand3au', 'template_tvjg21i', { email, passcode: otp })
-    .then(() => {
-        alert("OTP Sent to " + email);
-        document.getElementById('tabStudent').classList.add('hidden');
-        document.getElementById('viewOTP').classList.remove('hidden');
+    // 2. NOW start the listener for this specific emailKey
+    db.ref('active_access/' + emailKey).on('value', (snapshot) => {
+        const data = snapshot.val();
+        
+        // Ensure data exists and status is verified
+        if (data && data.status === "verified" && !data.otpSent) {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            // Mark as sent in DB immediately to prevent loops
+            db.ref('active_access/' + emailKey).update({ 
+                otp: otp, 
+                otpSent: true 
+            });
+            
+            // Trigger the EmailJS function
+            sendOtpViaEmailjs(data.email, otp);
+        }
     });
 }
 
