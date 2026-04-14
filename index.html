@@ -141,30 +141,41 @@ function teacherLogin() {
 
 // FIX 2: Consistently named function for the Teacher Panel buttons
 function loadAdminVerificationList() {
+function loadAdminVerificationList() {
     const list = document.getElementById('adminWaitList');
-    list.innerHTML = "Checking database...";
+    list.innerHTML = "Searching for pending payments...";
 
+    // Listen to the entire node
     db.ref('active_access').on('value', snap => {
         list.innerHTML = "";
         let found = false;
+        
         if (snap.exists()) {
             snap.forEach(child => {
                 const data = child.val();
+                // Match the 'pending' status saved by the student
                 if (data.status === "pending") {
                     found = true;
                     list.innerHTML += `
-                        <div style="padding:10px; border-bottom:1px solid #eee; background:#fff; margin-bottom:5px; border-radius:8px;">
-                            <p><strong>Email:</strong> ${data.email}</p>
+                        <div style="padding:15px; border-bottom:2px solid #007bff; background:#fff; margin-bottom:10px; border-radius:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <p><strong>Student:</strong> ${data.email}</p>
                             <p><strong>UTR:</strong> ${data.utr}</p>
                             <button class="action-btn" style="background:var(--success)" 
-                                onclick="adminApprove('${child.key}')">Approve & Send OTP</button>
+                                onclick="adminApprove('${child.key}')">✔ Approve & Trigger OTP</button>
                         </div>`;
                 }
             });
         }
-        if (!found) list.innerHTML = "No pending requests.";
+        
+        if (!found) {
+            list.innerHTML = "<p style='color:gray;'>No students currently waiting for approval.</p>";
+        }
+    }, err => {
+        console.error("Teacher Panel Read Error:", err);
+        list.innerHTML = "Error loading data: " + err.message;
     });
 }
+
 
 function adminApprove(emailKey) {
     db.ref('active_access/' + emailKey).update({
@@ -241,19 +252,26 @@ function check(u, a) {
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
+    
     if(!email || utr.length < 12) return alert("Fill details properly.");
 
-    const emailKey = email.replace(/\./g, ',');
-    await db.ref('active_access/' + emailKey).set({
+    const emailKey = email.replace(/\./g, ','); 
+    
+    // SAVE LOGIC
+    db.ref('active_access/' + emailKey).set({
         email: email,
         utr: utr,
         emailTime: Date.now(),
-        status: "pending",
+        status: "pending", // Teacher looks for this exact string
         otpSent: false
+    }).then(() => {
+        alert("Request submitted. Waiting for teachers verification & approval...");
+        console.log("Data saved for: ", emailKey);
+    }).catch(err => {
+        alert("Database Save Error: " + err.message);
     });
 
-    alert("Request submitted. Waiting for teachers verification & approval...");
-
+    // LISTENER FOR APPROVAL
     db.ref('active_access/' + emailKey).on('value', (snapshot) => {
         const data = snapshot.val();
         if (data && data.status === "verified" && !data.otpSent) {
