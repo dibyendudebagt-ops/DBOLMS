@@ -273,13 +273,25 @@ async function processPayment() {
 }
 
 async function sendOtpViaEmailjs(email, otp) {
-    const templateParams = { email: email, passcode: otp, to_name: email };
+    // Make sure these names match the {{brackets}} in your EmailJS dashboard exactly!
+    const templateParams = { to_email: email, passcode: otp, time: "15 minutes" // This fills the {{time}} gap in your screenshot
+    };
+    
     try {
         await emailjs.send('service_rand3au', 'template_tvjg21i', templateParams);
         alert("Verification successful! OTP sent to: " + email);
+        
+        // This shows the box where the student enters the code
         document.getElementById('viewOTP').classList.remove('hidden');
-    } catch (err) { alert("Email Error: " + err); }
+        
+        // Optional: Scroll down to the OTP box so the student sees it immediately
+        document.getElementById('viewOTP').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (err) { 
+        alert("Email Error: " + err); 
+    }
 }
+
 
 async function unlockPremium() {
     const emailValue = document.getElementById('payEmail').value;
