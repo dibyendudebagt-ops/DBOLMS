@@ -68,7 +68,12 @@
                 <input type="text" id="cImgUrl" placeholder="GitHub PNG Link">
                 <button class="action-btn" style="background:var(--success)" onclick="addCourse()">Upload Course</button>
             </div>
-
+            
+<div class="card admin-section">
+    <h3>Pending UTR Verifications</h3>
+    <div id="adminWaitList">No pending requests.</div>
+</div>
+            
             <div class="card admin-section">
                 <h3>Add New Quiz</h3>
                 <input type="text" id="qText" placeholder="Question">
@@ -130,6 +135,33 @@ function teacherLogin() {
         document.getElementById('teacherLoginDiv').classList.add('hidden');
         document.getElementById('teacherDashDiv').classList.remove('hidden');
     }).catch(err => alert(err.message));
+
+    // Run this once the teacher is logged in
+function loadAdminVerificationList() {
+    db.ref('active_access').orderByChild('status').equalTo('pending').on('value', snap => {
+        const list = document.getElementById('adminWaitList');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const data = child.val();
+            list.innerHTML += `
+                <div style="padding:10px; border-bottom:1px solid #eee;">
+                    <p><strong>Email:</strong> ${data.email}</p>
+                    <p><strong>UTR:</strong> ${data.utr}</p>
+                    <button class="action-btn" style="background:var(--success)" 
+                        onclick="adminApprove('${child.key}')">Approve & Send OTP</button>
+                </div>`;
+        });
+    });
+}
+
+function adminApprove(emailKey) {
+    // This flips the switch that the student's phone is waiting for
+    db.ref('active_access/' + emailKey).update({
+        status: "verified",
+        utrTime: Date.now() // This fulfills your rule requirement
+    }).then(() => alert("Student Verified! OTP is being sent."));
+}
+
 }
 
 // 1. IMPROVED ADD COURSE (Fixes links before saving)
