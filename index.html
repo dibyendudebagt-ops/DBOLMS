@@ -129,42 +129,50 @@ function switchTab(tab) {
     document.getElementById('btnTeach').classList.toggle('active', tab === 'teacher');
 }
 
+// FIX 1: Move functions OUTSIDE teacherLogin so buttons can find them
 function teacherLogin() {
     auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
     .then(() => {
         document.getElementById('teacherLoginDiv').classList.add('hidden');
         document.getElementById('teacherDashDiv').classList.remove('hidden');
+        loadAdminVerificationList(); // Start listening for UTRs immediately upon login
     }).catch(err => alert(err.message));
+}
 
-    // Run this once the teacher is logged in
+// FIX 2: Consistently named function for the Teacher Panel buttons
 function loadAdminVerificationList() {
-    db.ref('active_access').orderByChild('status').equalTo('pending').on('value', snap => {
-        const list = document.getElementById('adminWaitList');
+    const list = document.getElementById('adminWaitList');
+    list.innerHTML = "Checking database...";
+
+    db.ref('active_access').on('value', snap => {
         list.innerHTML = "";
-        snap.forEach(child => {
-            const data = child.val();
-            list.innerHTML += `
-                <div style="padding:10px; border-bottom:1px solid #eee;">
-                    <p><strong>Email:</strong> ${data.email}</p>
-                    <p><strong>UTR:</strong> ${data.utr}</p>
-                    <button class="action-btn" style="background:var(--success)" 
-                        onclick="adminApprove('${child.key}')">Approve & Send OTP</button>
-                </div>`;
-        });
+        let found = false;
+        if (snap.exists()) {
+            snap.forEach(child => {
+                const data = child.val();
+                if (data.status === "pending") {
+                    found = true;
+                    list.innerHTML += `
+                        <div style="padding:10px; border-bottom:1px solid #eee; background:#fff; margin-bottom:5px; border-radius:8px;">
+                            <p><strong>Email:</strong> ${data.email}</p>
+                            <p><strong>UTR:</strong> ${data.utr}</p>
+                            <button class="action-btn" style="background:var(--success)" 
+                                onclick="adminApprove('${child.key}')">Approve & Send OTP</button>
+                        </div>`;
+                }
+            });
+        }
+        if (!found) list.innerHTML = "No pending requests.";
     });
 }
 
 function adminApprove(emailKey) {
-    // This flips the switch that the student's phone is waiting for
     db.ref('active_access/' + emailKey).update({
         status: "verified",
-        utrTime: Date.now() // This fulfills your rule requirement
+        utrTime: Date.now()
     }).then(() => alert("Student Verified! OTP is being sent."));
 }
 
-}
-
-// 1. IMPROVED ADD COURSE (Fixes links before saving)
 function addCourse() {
     let url = document.getElementById('cImgUrl').value;
     if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
@@ -189,23 +197,23 @@ function addQuiz() {
 }
 
 function addPDF() {
-    db.ref('premium_pdfs').push({ title: document.getElementById('pdfTitle').value, url: document.getElementById('pdfUrl').value });
+    db.ref('premium_pdfs').push({ 
+        title: document.getElementById('pdfTitle').value, 
+        url: document.getElementById('pdfUrl').value 
+    });
     alert("Premium Added!");
 }
 
-// 2. IMPROVED DATA SYNC (Fixes old links on-the-fly)
+// Listeners for Student View
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
     snap.forEach(child => {
         const item = child.val();
         let displayImg = item.img;
-        
-        // Double-check fix for older entries
         if (displayImg.includes("github.com") && !displayImg.includes("raw.githubusercontent.com")) {
             displayImg = displayImg.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
         }
-        
         cont.innerHTML += `<div style="margin-bottom:20px;">
             <h3 style="margin-bottom:5px;">${item.title}</h3>
             <img src="${displayImg}" class="course-img" alt="Lesson Graphic">
@@ -233,74 +241,36 @@ function check(u, a) {
 async function processPayment() {
     const email = document.getElementById('payEmail').value;
     const utr = document.getElementById('payUTR').value;
-    
     if(!email || utr.length < 12) return alert("Fill details properly.");
 
-    const emailKey = email.replace(/\./g, ','); // Define emailKey here
-    
-    // 1. Submit the pending request
+    const emailKey = email.replace(/\./g, ',');
     await db.ref('active_access/' + emailKey).set({
         email: email,
         utr: utr,
         emailTime: Date.now(),
         status: "pending",
-        otpSent: false // Initialize this to false
+        otpSent: false
     });
 
     alert("Request submitted. Waiting for teachers verification & approval...");
 
-    // 2. NOW start the listener for this specific emailKey
     db.ref('active_access/' + emailKey).on('value', (snapshot) => {
         const data = snapshot.val();
-        
-        // Ensure data exists and status is verified
         if (data && data.status === "verified" && !data.otpSent) {
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            // Mark as sent in DB immediately to prevent loops
-            db.ref('active_access/' + emailKey).update({ 
-                otp: otp, 
-                otpSent: true 
-            });
-            
-            // Trigger the EmailJS function
+            db.ref('active_access/' + emailKey).update({ otp: otp, otpSent: true });
             sendOtpViaEmailjs(data.email, otp);
         }
     });
 }
 
-function loadPendingRequests() {
-    const container = document.getElementById('pendingList');
-    container.innerHTML = "Checking database...";
-
-    // Use 'on' to listen for any changes in real-time
-    db.ref('active_access').on('value', snap => {
-        container.innerHTML = "";
-        let found = false;
-
-        if (snap.exists()) {
-            snap.forEach(child => {
-                const req = child.val();
-                // Check for 'pending' status manually to be safe
-                if (req.status === "pending") {
-                    found = true;
-                    container.innerHTML += `
-                        <div class="req-item" style="background:#f9f9f9; padding:10px; margin-bottom:10px; border-radius:8px;">
-                            <p><strong>Email:</strong> ${req.email}</p>
-                            <p><strong>UTR:</strong> ${req.utr}</p>
-                            <button class="action-btn" style="background:var(--success)" 
-                                onclick="approveRequest('${child.key}')">Approve & Send OTP</button>
-                        </div>`;
-                }
-            });
-        }
-
-        if (!found) {
-            container.innerHTML = "No pending requests found.";
-        }
-    }, error => {
-        container.innerHTML = "Error: " + error.message;
-    });
+async function sendOtpViaEmailjs(email, otp) {
+    const templateParams = { email: email, passcode: otp, to_name: email };
+    try {
+        await emailjs.send('service_rand3au', 'template_tvjg21i', templateParams);
+        alert("Verification successful! OTP sent to: " + email);
+        document.getElementById('viewOTP').classList.remove('hidden');
+    } catch (err) { alert("Email Error: " + err); }
 }
 
 async function unlockPremium() {
