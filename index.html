@@ -250,6 +250,7 @@ async function processPayment() {
 
     const emailKey = email.replace(/\./g, ','); 
     
+    // Save to Firebase
     db.ref('active_access/' + emailKey).set({
         email: email,
         utr: utr,
@@ -257,40 +258,45 @@ async function processPayment() {
         status: "pending",
         otpSent: false
     }).then(() => {
-        alert("Request submitted. Waiting for teachers verification & approval...");
-    }).catch(err => {
-        alert("Database Save Error: " + err.message);
+        alert("Request submitted. Keep this page open. Once the teacher verifies your UTR, the OTP box will appear here.");
     });
 
+    // STUDENT LISTENER: This waits for the Teacher to click "Approve"
     db.ref('active_access/' + emailKey).on('value', (snapshot) => {
         const data = snapshot.val();
-        if (data && data.status === "verified" && !data.otpSent) {
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            db.ref('active_access/' + emailKey).update({ otp: otp, otpSent: true });
-            sendOtpViaEmailjs(data.email, otp);
+
+        if (data && data.status === "verified") {
+            // ONLY SHOW THE BOX FOR THE STUDENT
+            document.getElementById('viewOTP').classList.remove('hidden');
+            document.getElementById('viewOTP').scrollIntoView({ behavior: 'smooth' });
+
+            // If OTP isn't sent yet, trigger the email (Teacher's update will trigger this)
+            if (!data.otpSent) {
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                db.ref('active_access/' + emailKey).update({ otp: otp, otpSent: true });
+                sendOtpViaEmailjs(data.email, otp);
+            }
         }
     });
 }
 
+
 async function sendOtpViaEmailjs(email, otp) {
-    // Make sure these names match the {{brackets}} in your EmailJS dashboard exactly!
-    const templateParams = { to_email: email, passcode: otp, time: "15 minutes" // This fills the {{time}} gap in your screenshot
+    const templateParams = { 
+        to_email: email, 
+        passcode: otp,
+        time: "15 minutes" 
     };
     
     try {
         await emailjs.send('service_rand3au', 'template_tvjg21i', templateParams);
-        alert("Verification successful! OTP sent to: " + email);
-        
-        // This shows the box where the student enters the code
-        document.getElementById('viewOTP').classList.remove('hidden');
-        
-        // Optional: Scroll down to the OTP box so the student sees it immediately
-        document.getElementById('viewOTP').scrollIntoView({ behavior: 'smooth' });
-        
+        // We don't alert here anymore to avoid interrupting the Teacher
+        console.log("OTP sent to student email."); 
     } catch (err) { 
-        alert("Email Error: " + err); 
+        console.error("Email Error: " + err); 
     }
 }
+
 
 
 async function unlockPremium() {
