@@ -69,10 +69,10 @@
                 <button class="action-btn" style="background:var(--success)" onclick="addCourse()">Upload Course</button>
             </div>
             
-<div class="card admin-section">
-    <h3>Pending UTR Verifications</h3>
-    <div id="adminWaitList">No pending requests.</div>
-</div>
+            <div class="card admin-section">
+                <h3>Pending UTR Verifications</h3>
+                <div id="adminWaitList">No pending requests.</div>
+            </div>
             
             <div class="card admin-section">
                 <h3>Add New Quiz</h3>
@@ -129,23 +129,19 @@ function switchTab(tab) {
     document.getElementById('btnTeach').classList.toggle('active', tab === 'teacher');
 }
 
-// FIX 1: Move functions OUTSIDE teacherLogin so buttons can find them
 function teacherLogin() {
     auth.signInWithEmailAndPassword(document.getElementById('tEmail').value, document.getElementById('tPass').value)
     .then(() => {
         document.getElementById('teacherLoginDiv').classList.add('hidden');
         document.getElementById('teacherDashDiv').classList.remove('hidden');
-        loadAdminVerificationList(); // Start listening for UTRs immediately upon login
+        loadAdminVerificationList(); 
     }).catch(err => alert(err.message));
 }
 
-// FIX 2: Consistently named function for the Teacher Panel buttons
-function loadAdminVerificationList() {
 function loadAdminVerificationList() {
     const list = document.getElementById('adminWaitList');
     list.innerHTML = "Searching for pending payments...";
 
-    // Listen to the entire node
     db.ref('active_access').on('value', snap => {
         list.innerHTML = "";
         let found = false;
@@ -153,7 +149,6 @@ function loadAdminVerificationList() {
         if (snap.exists()) {
             snap.forEach(child => {
                 const data = child.val();
-                // Match the 'pending' status saved by the student
                 if (data.status === "pending") {
                     found = true;
                     list.innerHTML += `
@@ -175,7 +170,6 @@ function loadAdminVerificationList() {
         list.innerHTML = "Error loading data: " + err.message;
     });
 }
-
 
 function adminApprove(emailKey) {
     db.ref('active_access/' + emailKey).update({
@@ -215,7 +209,6 @@ function addPDF() {
     alert("Premium Added!");
 }
 
-// Listeners for Student View
 db.ref('courses').on('value', snap => {
     const cont = document.getElementById('courseContainer');
     cont.innerHTML = "";
@@ -257,21 +250,18 @@ async function processPayment() {
 
     const emailKey = email.replace(/\./g, ','); 
     
-    // SAVE LOGIC
     db.ref('active_access/' + emailKey).set({
         email: email,
         utr: utr,
         emailTime: Date.now(),
-        status: "pending", // Teacher looks for this exact string
+        status: "pending",
         otpSent: false
     }).then(() => {
         alert("Request submitted. Waiting for teachers verification & approval...");
-        console.log("Data saved for: ", emailKey);
     }).catch(err => {
         alert("Database Save Error: " + err.message);
     });
 
-    // LISTENER FOR APPROVAL
     db.ref('active_access/' + emailKey).on('value', (snapshot) => {
         const data = snapshot.val();
         if (data && data.status === "verified" && !data.otpSent) {
@@ -292,7 +282,10 @@ async function sendOtpViaEmailjs(email, otp) {
 }
 
 async function unlockPremium() {
-    const emailKey = document.getElementById('payEmail').value.replace(/\./g, ',');
+    const emailValue = document.getElementById('payEmail').value;
+    if(!emailValue) return alert("Please enter your email in the payment box first.");
+    
+    const emailKey = emailValue.replace(/\./g, ',');
     const input = document.getElementById('otpInput').value;
     const snap = await db.ref('active_access/' + emailKey).once('value');
     
